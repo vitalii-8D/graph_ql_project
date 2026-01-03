@@ -16,10 +16,6 @@ export class CreatePostInput {
   @IsOptional()
   published?: boolean;
 
-  @Field(() => ID)
-  @IsNotEmpty()
-  authorId: number;
-
   @Field(() => [ID], { nullable: true })
   @IsOptional()
   @IsArray()

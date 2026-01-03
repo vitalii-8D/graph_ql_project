@@ -49,7 +49,6 @@ input CreateOpenGraphInput {
 }
 
 input CreatePostInput {
-  authorId: ID!
   categoryIds: [ID!]
   content: String!
   published: Boolean! = false
@@ -202,7 +201,6 @@ input UpdateOpenGraphInput {
 }
 
 input UpdatePostInput {
-  authorId: ID
   categoryIds: [ID!]
   content: String
   id: ID!
@@ -224,4 +222,11 @@ type UserEntity {
   id: ID!
   name: String!
   posts: [PostEntity!]
+  role: UserRole!
+}
+
+"""User role"""
+enum UserRole {
+  ADMIN
+  USER
 }
