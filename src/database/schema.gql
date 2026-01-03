@@ -2,11 +2,16 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Category {
+type AuthResponse {
+  access_token: String!
+  user: UserEntity!
+}
+
+type CategoryEntity {
   description: String
   id: ID!
   name: String!
-  posts: [Post!]
+  posts: [PostEntity!]
 }
 
 input CreateOpenGraphInput {
@@ -63,16 +68,22 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input LoginInput {
+  email: String!
+  password: String!
+}
+
 type Mutation {
-  createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadata!
-  createPost(createPostInput: CreatePostInput!): Post!
-  createUser(createUserInput: CreateUserInput!): User!
-  removeOpenGraphMetadata(id: ID!): OpenGraphMetadata!
-  removePost(id: ID!): Post!
-  removeUser(id: ID!): User!
-  updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadata!
-  updatePost(updatePostInput: UpdatePostInput!): Post!
-  updateUser(updateUserInput: UpdateUserInput!): User!
+  createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadataEntity!
+  createPost(createPostInput: CreatePostInput!): PostEntity!
+  createUser(createUserInput: CreateUserInput!): UserEntity!
+  login(loginInput: LoginInput!): AuthResponse!
+  removeOpenGraphMetadata(id: ID!): OpenGraphMetadataEntity!
+  removePost(id: ID!): PostEntity!
+  removeUser(id: ID!): UserEntity!
+  updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadataEntity!
+  updatePost(updatePostInput: UpdatePostInput!): PostEntity!
+  updateUser(updateUserInput: UpdateUserInput!): UserEntity!
 }
 
 """Open Graph content types"""
@@ -87,7 +98,7 @@ enum OgType {
   WEBSITE
 }
 
-type OpenGraphMetadata {
+type OpenGraphMetadataEntity {
   audioUrl: String
   author: String
   availability: String
@@ -105,7 +116,7 @@ type OpenGraphMetadata {
   locationLatitude: Float
   locationLongitude: Float
   modifiedTime: DateTime
-  post: Post!
+  post: PostEntity!
   postId: ID!
   price: Float
   publishedTime: DateTime
@@ -124,14 +135,14 @@ type OpenGraphMetadata {
   videoWidth: Float
 }
 
-type Post {
-  author: User!
+type PostEntity {
+  author: UserEntity!
   authorId: ID!
-  categories: [Category!]
+  categories: [CategoryEntity!]
   content: String!
   createdAt: DateTime!
   id: ID!
-  openGraphMetadata: OpenGraphMetadata
+  openGraphMetadata: OpenGraphMetadataEntity
   published: Boolean!
   title: String!
   updatedAt: DateTime!
@@ -140,13 +151,13 @@ type Post {
 type Query {
   generateOpenGraphTags(baseUrl: String!, id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
-  openGraphMetadata(id: ID!): OpenGraphMetadata!
-  openGraphMetadataByPost(postId: ID!): OpenGraphMetadata
-  openGraphMetadataList: [OpenGraphMetadata!]!
-  post(id: ID!): Post!
-  posts: [Post!]!
-  user(id: ID!): User!
-  users: [User!]!
+  openGraphMetadata(id: ID!): OpenGraphMetadataEntity!
+  openGraphMetadataByPost(postId: ID!): OpenGraphMetadataEntity
+  openGraphMetadataList: [OpenGraphMetadataEntity!]!
+  post(id: ID!): PostEntity!
+  posts: [PostEntity!]!
+  user(id: ID!): UserEntity!
+  users: [UserEntity!]!
 }
 
 type ShareLinks {
@@ -207,11 +218,10 @@ input UpdateUserInput {
   password: String
 }
 
-type User {
+type UserEntity {
   age: Float
   email: String!
   id: ID!
   name: String!
-  password: String!
-  posts: [Post!]
+  posts: [PostEntity!]
 }

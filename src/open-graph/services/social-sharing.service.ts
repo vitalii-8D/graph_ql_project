@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { OpenGraphMetadata } from '../entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
 
 export interface ShareLinks {
   facebook: string;
@@ -22,7 +22,7 @@ export class SocialSharingService {
    * @param metadata - Optional OpenGraph metadata for customization
    * @returns Object containing share links for Facebook, Twitter, and LinkedIn
    */
-  generateShareLinks(url: string, metadata?: OpenGraphMetadata): ShareLinks {
+  generateShareLinks(url: string, metadata?: OpenGraphMetadataEntity): ShareLinks {
     return {
       facebook: this.generateFacebookShareLink(url),
       twitter: this.generateTwitterShareLink(url, metadata),
@@ -48,7 +48,7 @@ export class SocialSharingService {
    * @param metadata - Optional metadata for tweet customization
    * @returns Twitter share URL
    */
-  generateTwitterShareLink(url: string, metadata?: OpenGraphMetadata): string {
+  generateTwitterShareLink(url: string, metadata?: OpenGraphMetadataEntity): string {
     const params = new URLSearchParams();
     params.append('url', url);
 
@@ -87,7 +87,7 @@ export class SocialSharingService {
    * @param baseUrl - Base URL of the application
    * @returns HTML string with meta tags
    */
-  generateOpenGraphTags(metadata: OpenGraphMetadata, baseUrl: string): string {
+  generateOpenGraphTags(metadata: OpenGraphMetadataEntity, baseUrl: string): string {
     const tags: string[] = [];
 
     // Basic Open Graph tags

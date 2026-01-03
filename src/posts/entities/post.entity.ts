@@ -12,13 +12,13 @@ import {
   JoinColumn,
 } from 'typeorm';
 
-import { User } from '../../users/entities/user.entity';
-import { Category } from '../../categories/entities/category.entity';
-import { OpenGraphMetadata } from '../../open-graph/entities/open-graph-metadata.entity';
+import { UserEntity } from '../../users/entities/user.entity';
+import { CategoryEntity } from '../../categories/entities/category.entity';
+import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
 
 @ObjectType()
 @Entity('posts')
-export class Post {
+export class PostEntity {
   @Field(() => ID)
   @PrimaryGeneratedColumn()
   id: number;
@@ -39,15 +39,15 @@ export class Post {
   @Column({ name: 'author_id' })
   authorId: number;
 
-  @Field(() => User)
-  @ManyToOne(() => User, (user) => user.posts, { onDelete: 'CASCADE' })
+  @Field(() => UserEntity)
+  @ManyToOne(() => UserEntity, (user) => user.posts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'author_id' })
-  author: User;
+  author: UserEntity;
 
-  @Field(() => [Category], { nullable: true })
-  @ManyToMany(() => Category, (category) => category.posts, { cascade: true, eager: true })
+  @Field(() => [CategoryEntity], { nullable: true })
+  @ManyToMany(() => CategoryEntity, (category) => category.posts, { cascade: true, eager: true })
   @JoinTable()
-  categories?: Category[];
+  categories?: CategoryEntity[];
 
   @Field()
   @CreateDateColumn({ name: 'created_at' })
@@ -57,7 +57,7 @@ export class Post {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Field(() => OpenGraphMetadata, { nullable: true })
-  @OneToOne(() => OpenGraphMetadata, (metadata) => metadata.post, { cascade: true, eager: true })
-  openGraphMetadata?: OpenGraphMetadata;
+  @Field(() => OpenGraphMetadataEntity, { nullable: true })
+  @OneToOne(() => OpenGraphMetadataEntity, (metadata) => metadata.post, { cascade: true, eager: true })
+  openGraphMetadata?: OpenGraphMetadataEntity;
 }

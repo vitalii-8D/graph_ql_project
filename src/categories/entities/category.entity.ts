@@ -1,11 +1,11 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { Entity, PrimaryGeneratedColumn, Column, ManyToMany } from 'typeorm';
 
-import { Post } from '../../posts/entities/post.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
 
 @ObjectType()
 @Entity('categories')
-export class Category {
+export class CategoryEntity {
   @Field(() => ID)
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,7 +18,7 @@ export class Category {
   @Column({ nullable: true })
   description?: string;
 
-  @Field(() => [Post], { nullable: true })
-  @ManyToMany(() => Post, (post) => post.categories)
-  posts?: Post[];
+  @Field(() => [PostEntity], { nullable: true })
+  @ManyToMany(() => PostEntity, (post) => post.categories)
+  posts?: PostEntity[];
 }

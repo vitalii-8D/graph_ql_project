@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 
 import { UsersResolver } from './users.resolver';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { UserEntity } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
 
@@ -11,7 +11,7 @@ describe('UsersResolver', () => {
   let resolver: UsersResolver;
   let service: UsersService;
 
-  const mockUser: User = {
+  const mockUser: UserEntity = {
     id: 1,
     email: 'test@example.com',
     name: 'Test User',

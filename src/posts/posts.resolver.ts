@@ -1,35 +1,35 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { PostsService } from './posts.service';
-import { Post } from './entities/post.entity';
+import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
 
-@Resolver(() => Post)
+@Resolver(() => PostEntity)
 export class PostsResolver {
   constructor(private readonly postsService: PostsService) {}
 
-  @Mutation(() => Post)
-  createPost(@Args('createPostInput') createPostInput: CreatePostInput): Promise<Post> {
+  @Mutation(() => PostEntity)
+  createPost(@Args('createPostInput') createPostInput: CreatePostInput): Promise<PostEntity> {
     return this.postsService.create(createPostInput);
   }
 
-  @Query(() => [Post], { name: 'posts' })
-  findAll(): Promise<Post[]> {
+  @Query(() => [PostEntity], { name: 'posts' })
+  findAll(): Promise<PostEntity[]> {
     return this.postsService.findAll();
   }
 
-  @Query(() => Post, { name: 'post' })
-  findOne(@Args('id', { type: () => ID }) id: number): Promise<Post> {
+  @Query(() => PostEntity, { name: 'post' })
+  findOne(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
     return this.postsService.findOne(id);
   }
 
-  @Mutation(() => Post)
-  updatePost(@Args('updatePostInput') updatePostInput: UpdatePostInput): Promise<Post> {
+  @Mutation(() => PostEntity)
+  updatePost(@Args('updatePostInput') updatePostInput: UpdatePostInput): Promise<PostEntity> {
     return this.postsService.update(updatePostInput);
   }
 
-  @Mutation(() => Post)
-  removePost(@Args('id', { type: () => ID }) id: number): Promise<Post> {
+  @Mutation(() => PostEntity)
+  removePost(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
     return this.postsService.remove(id);
   }
 }

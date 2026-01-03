@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { SeederService } from './seeder.service';
-import { User } from '../../users/entities/user.entity';
-import { Post } from '../../posts/entities/post.entity';
-import { Category } from '../../categories/entities/category.entity';
-import { OpenGraphMetadata } from '../../open-graph/entities/open-graph-metadata.entity';
+import { UserEntity } from '../../users/entities/user.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
+import { CategoryEntity } from '../../categories/entities/category.entity';
+import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Post, Category, OpenGraphMetadata])],
+  imports: [TypeOrmModule.forFeature([UserEntity, PostEntity, CategoryEntity, OpenGraphMetadataEntity])],
   providers: [SeederService],
   exports: [SeederService],
 })

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SocialSharingService } from './social-sharing.service';
-import { OpenGraphMetadata } from '../entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
 import { OgType } from '../entities/open-graph-metadata.entity';
 
 describe('SocialSharingService', () => {
@@ -50,7 +50,7 @@ describe('SocialSharingService', () => {
       const metadata = {
         title: 'My Awesome Post',
         tags: ['tech', 'javascript'],
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateTwitterShareLink(url, metadata);
 
@@ -63,7 +63,7 @@ describe('SocialSharingService', () => {
       const metadata = {
         title: 'Test Post',
         twitterSite: '@mysite',
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateTwitterShareLink(url, metadata);
 
@@ -75,7 +75,7 @@ describe('SocialSharingService', () => {
       const metadata = {
         title: 'Test',
         tags: ['one', 'two', 'three', 'four'],
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateTwitterShareLink(url, metadata);
 
@@ -112,7 +112,7 @@ describe('SocialSharingService', () => {
       const metadata = {
         title: 'Test Post',
         tags: ['tech'],
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateShareLinks(url, metadata);
 
@@ -129,7 +129,7 @@ describe('SocialSharingService', () => {
         type: OgType.ARTICLE,
         url: 'https://example.com/post/123',
         locale: 'en_US',
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -148,7 +148,7 @@ describe('SocialSharingService', () => {
         imageAlt: 'Test image',
         imageWidth: 1200,
         imageHeight: 630,
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -167,7 +167,7 @@ describe('SocialSharingService', () => {
         publisher: 'Example Publisher',
         publishedTime: new Date('2024-01-01'),
         tags: ['tech', 'javascript'],
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -186,7 +186,7 @@ describe('SocialSharingService', () => {
         videoDuration: 120,
         videoWidth: 1920,
         videoHeight: 1080,
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -204,7 +204,7 @@ describe('SocialSharingService', () => {
         price: 99.99,
         currency: 'USD',
         availability: 'in stock',
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -221,7 +221,7 @@ describe('SocialSharingService', () => {
         locationAddress: '123 Main St, City',
         locationLatitude: 40.7128,
         locationLongitude: -74.006,
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -240,7 +240,7 @@ describe('SocialSharingService', () => {
         twitterCreator: '@johndoe',
         image: 'https://example.com/image.jpg',
         imageAlt: 'Test image',
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 
@@ -257,7 +257,7 @@ describe('SocialSharingService', () => {
         title: 'Test & "Special" <Characters>',
         description: "Test with 'quotes'",
         type: OgType.ARTICLE,
-      } as OpenGraphMetadata;
+      } as OpenGraphMetadataEntity;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');
 

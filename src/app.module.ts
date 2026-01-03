@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
 import { UsersModule } from './users/users.module';
@@ -12,6 +11,7 @@ import { UtilsModule } from './utils/utils.module';
 import { CategoriesModule } from './categories/categories.module';
 import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
+import { AuthModule } from './auth/auth.module';
 import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
 
@@ -28,15 +28,13 @@ const staticFolder = join(process.cwd(), 'public');
       sortSchema: true,
       playground: true,
     }),
-    // ServeStaticModule.forRoot({
-    //   rootPath: staticFolder,
-    // }),
     TypeOrmModule.forRoot(databaseConfig),
     UsersModule,
     PostsModule,
     CategoriesModule,
     OpenGraphModule,
     SeederModule,
+    AuthModule,
   ],
   controllers: [AppController],
 })

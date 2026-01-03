@@ -1,7 +1,7 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
 
-import { Post } from '../../posts/entities/post.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
 
 export enum OgType {
   ARTICLE = 'article',
@@ -23,7 +23,7 @@ registerEnumType(OgType, {
 
 @ObjectType()
 @Entity('post_metadata')
-export class OpenGraphMetadata {
+export class OpenGraphMetadataEntity {
   @Field(() => ID)
   @PrimaryGeneratedColumn()
   id: number;
@@ -164,8 +164,8 @@ export class OpenGraphMetadata {
   @Column({ name: 'post_id' })
   postId: number;
 
-  @Field(() => Post)
-  @OneToOne(() => Post, (post) => post.openGraphMetadata, { onDelete: 'CASCADE' })
+  @Field(() => PostEntity)
+  @OneToOne(() => PostEntity, (post) => post.openGraphMetadata, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'post_id' })
-  post: Post;
+  post: PostEntity;
 }

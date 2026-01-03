@@ -1,11 +1,11 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 
-import { Post } from '../../posts/entities/post.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
 
 @ObjectType()
 @Entity('users')
-export class User {
+export class UserEntity {
   @Field(() => ID)
   @PrimaryGeneratedColumn()
   id: number;
@@ -18,7 +18,6 @@ export class User {
   @Column()
   name: string;
 
-  @Field()
   @Column()
   password: string;
 
@@ -26,7 +25,7 @@ export class User {
   @Column({ nullable: true })
   age?: number;
 
-  @Field(() => [Post], { nullable: true })
-  @OneToMany(() => Post, (post) => post.author, { cascade: true })
-  posts?: Post[];
+  @Field(() => [PostEntity], { nullable: true })
+  @OneToMany(() => PostEntity, (post) => post.author, { cascade: true })
+  posts?: PostEntity[];
 }

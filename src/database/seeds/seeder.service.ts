@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { User } from '../../users/entities/user.entity';
-import { Post } from '../../posts/entities/post.entity';
-import { Category } from '../../categories/entities/category.entity';
-import { OpenGraphMetadata } from '../../open-graph/entities/open-graph-metadata.entity';
+import { UserEntity } from '../../users/entities/user.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
+import { CategoryEntity } from '../../categories/entities/category.entity';
+import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
 import { OgType } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PasswordUtil } from '../../utils/password.util';
 
@@ -14,14 +14,14 @@ const MOCK_PASSWORD = 'Password!1';
 @Injectable()
 export class SeederService {
   constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-    @InjectRepository(Post)
-    private postRepository: Repository<Post>,
-    @InjectRepository(Category)
-    private categoryRepository: Repository<Category>,
-    @InjectRepository(OpenGraphMetadata)
-    private openGraphRepository: Repository<OpenGraphMetadata>,
+    @InjectRepository(UserEntity)
+    private userRepository: Repository<UserEntity>,
+    @InjectRepository(PostEntity)
+    private postRepository: Repository<PostEntity>,
+    @InjectRepository(CategoryEntity)
+    private categoryRepository: Repository<CategoryEntity>,
+    @InjectRepository(OpenGraphMetadataEntity)
+    private openGraphRepository: Repository<OpenGraphMetadataEntity>,
     private readonly passwordUtil: PasswordUtil,
   ) {}
 
@@ -51,7 +51,7 @@ export class SeederService {
   //   console.log('Cleared existing data');
   // }
 
-  private async createCategories(): Promise<Category[]> {
+  private async createCategories(): Promise<CategoryEntity[]> {
     const techCategory = this.categoryRepository.create({
       name: 'Technology',
       description: 'Tech-related posts',
@@ -72,7 +72,7 @@ export class SeederService {
     return categories;
   }
 
-  private async createUser1WithPosts(categories: Category[]) {
+  private async createUser1WithPosts(categories: CategoryEntity[]) {
     const user1 = this.userRepository.create({
       email: 'john.doe@example.com',
       name: 'John Doe',
@@ -153,7 +153,7 @@ export class SeederService {
     console.log('Created User 1 with posts with OpenGraph metadata');
   }
 
-  private async createUser2WithPosts(categories: Category[]) {
+  private async createUser2WithPosts(categories: CategoryEntity[]) {
     const user2 = this.userRepository.create({
       email: 'jane.smith@example.com',
       name: 'Jane Smith',
@@ -240,7 +240,7 @@ export class SeederService {
     console.log('Created User 2 with posts with OpenGraph metadata');
   }
 
-  private async createUser3WithPosts(categories: Category[]) {
+  private async createUser3WithPosts(categories: CategoryEntity[]) {
     const user3 = this.userRepository.create({
       email: 'bob.wilson@example.com',
       name: 'Bob Wilson',

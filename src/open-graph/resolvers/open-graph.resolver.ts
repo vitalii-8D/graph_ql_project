@@ -1,50 +1,50 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { OpenGraphService } from '../services/open-graph.service';
 import { SocialSharingService } from '../services/social-sharing.service';
-import { OpenGraphMetadata } from '../entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
 import { CreateOpenGraphInput } from '../dto/create-open-graph.input';
 import { UpdateOpenGraphInput } from '../dto/update-open-graph.input';
 import { ShareLinks } from '../types/share-links.type';
 
-@Resolver(() => OpenGraphMetadata)
+@Resolver(() => OpenGraphMetadataEntity)
 export class OpenGraphResolver {
   constructor(
     private readonly openGraphService: OpenGraphService,
     private readonly socialSharingService: SocialSharingService,
   ) {}
 
-  @Mutation(() => OpenGraphMetadata)
+  @Mutation(() => OpenGraphMetadataEntity)
   createOpenGraphMetadata(
     @Args('postId', { type: () => ID }) postId: number,
     @Args('createOpenGraphInput') createOpenGraphInput: CreateOpenGraphInput,
-  ): Promise<OpenGraphMetadata> {
+  ): Promise<OpenGraphMetadataEntity> {
     return this.openGraphService.create(postId, createOpenGraphInput);
   }
 
-  @Query(() => [OpenGraphMetadata], { name: 'openGraphMetadataList' })
-  findAll(): Promise<OpenGraphMetadata[]> {
+  @Query(() => [OpenGraphMetadataEntity], { name: 'openGraphMetadataList' })
+  findAll(): Promise<OpenGraphMetadataEntity[]> {
     return this.openGraphService.findAll();
   }
 
-  @Query(() => OpenGraphMetadata, { name: 'openGraphMetadata' })
-  findOne(@Args('id', { type: () => ID }) id: number): Promise<OpenGraphMetadata> {
+  @Query(() => OpenGraphMetadataEntity, { name: 'openGraphMetadata' })
+  findOne(@Args('id', { type: () => ID }) id: number): Promise<OpenGraphMetadataEntity> {
     return this.openGraphService.findOne(id);
   }
 
-  @Query(() => OpenGraphMetadata, { name: 'openGraphMetadataByPost', nullable: true })
-  findByPostId(@Args('postId', { type: () => ID }) postId: number): Promise<OpenGraphMetadata | null> {
+  @Query(() => OpenGraphMetadataEntity, { name: 'openGraphMetadataByPost', nullable: true })
+  findByPostId(@Args('postId', { type: () => ID }) postId: number): Promise<OpenGraphMetadataEntity | null> {
     return this.openGraphService.findByPostId(postId);
   }
 
-  @Mutation(() => OpenGraphMetadata)
+  @Mutation(() => OpenGraphMetadataEntity)
   updateOpenGraphMetadata(
     @Args('updateOpenGraphInput') updateOpenGraphInput: UpdateOpenGraphInput,
-  ): Promise<OpenGraphMetadata> {
+  ): Promise<OpenGraphMetadataEntity> {
     return this.openGraphService.update(updateOpenGraphInput);
   }
 
-  @Mutation(() => OpenGraphMetadata)
-  removeOpenGraphMetadata(@Args('id', { type: () => ID }) id: number): Promise<OpenGraphMetadata> {
+  @Mutation(() => OpenGraphMetadataEntity)
+  removeOpenGraphMetadata(@Args('id', { type: () => ID }) id: number): Promise<OpenGraphMetadataEntity> {
     return this.openGraphService.remove(id);
   }
 
@@ -53,7 +53,7 @@ export class OpenGraphResolver {
     @Args('url') url: string,
     @Args('postId', { type: () => ID, nullable: true }) postId?: number,
   ): Promise<ShareLinks> {
-    let metadata: OpenGraphMetadata | null = null;
+    let metadata: OpenGraphMetadataEntity | null = null;
 
     if (postId) {
       metadata = await this.openGraphService.findByPostId(postId);

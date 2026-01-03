@@ -1,24 +1,24 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Post } from './entities/post.entity';
-import { Category } from '../categories/entities/category.entity';
-import { User } from '../users/entities/user.entity';
+import { PostEntity } from './entities/post.entity';
+import { CategoryEntity } from '../categories/entities/category.entity';
+import { UserEntity } from '../users/entities/user.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
 
 @Injectable()
 export class PostsService {
   constructor(
-    @InjectRepository(Post)
-    private postsRepository: Repository<Post>,
-    @InjectRepository(Category)
-    private categoriesRepository: Repository<Category>,
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    @InjectRepository(PostEntity)
+    private postsRepository: Repository<PostEntity>,
+    @InjectRepository(CategoryEntity)
+    private categoriesRepository: Repository<CategoryEntity>,
+    @InjectRepository(UserEntity)
+    private usersRepository: Repository<UserEntity>,
   ) {}
 
-  async create(createPostInput: CreatePostInput): Promise<Post> {
+  async create(createPostInput: CreatePostInput): Promise<PostEntity> {
     const { authorId, categoryIds, ...postData } = createPostInput;
 
     const author = await this.usersRepository.findOne({
@@ -28,7 +28,7 @@ export class PostsService {
       throw new NotFoundException(`User with ID ${authorId} not found`);
     }
 
-    let categories: Category[] = [];
+    let categories: CategoryEntity[] = [];
     if (categoryIds && categoryIds.length > 0) {
       categories = await this.categoriesRepository.findBy({
         id: In(categoryIds),
@@ -44,13 +44,13 @@ export class PostsService {
     return await this.postsRepository.save(post);
   }
 
-  async findAll(): Promise<Post[]> {
+  async findAll(): Promise<PostEntity[]> {
     return await this.postsRepository.find({
       relations: ['author', 'categories', 'openGraphMetadata'],
     });
   }
 
-  async findOne(id: number): Promise<Post> {
+  async findOne(id: number): Promise<PostEntity> {
     const post = await this.postsRepository.findOne({
       where: { id },
       relations: ['author', 'categories', 'openGraphMetadata'],
@@ -63,7 +63,7 @@ export class PostsService {
     return post;
   }
 
-  async update(updatePostInput: UpdatePostInput): Promise<Post> {
+  async update(updatePostInput: UpdatePostInput): Promise<PostEntity> {
     const { id, categoryIds, authorId, ...updateData } = updatePostInput;
     const post = await this.findOne(id);
 
@@ -88,7 +88,7 @@ export class PostsService {
     return await this.postsRepository.save({ ...post, id: +post.id });
   }
 
-  async remove(id: number): Promise<Post> {
+  async remove(id: number): Promise<PostEntity> {
     const post = await this.findOne(id);
     await this.postsRepository.remove(post);
     return post;

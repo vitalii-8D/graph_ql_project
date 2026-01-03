@@ -4,12 +4,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostsService } from './posts.service';
 import { PostsResolver } from './posts.resolver';
 import { PostsWebController } from './posts-web.controller';
-import { Post } from './entities/post.entity';
-import { Category } from '../categories/entities/category.entity';
-import { User } from '../users/entities/user.entity';
+import { PostEntity } from './entities/post.entity';
+import { CategoryEntity } from '../categories/entities/category.entity';
+import { UserEntity } from '../users/entities/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Post, Category, User])],
+  imports: [TypeOrmModule.forFeature([PostEntity, CategoryEntity, UserEntity])],
   controllers: [PostsWebController],
   providers: [PostsResolver, PostsService],
   exports: [PostsService],

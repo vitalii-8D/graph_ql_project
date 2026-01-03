@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PostsResolver } from './posts.resolver';
 import { PostsService } from './posts.service';
-import { Post } from './entities/post.entity';
+import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
 import { NotFoundException } from '@nestjs/common';
@@ -23,7 +23,7 @@ describe('PostsResolver', () => {
     description: 'Tech posts',
   };
 
-  const mockPost: Post = {
+  const mockPost: PostEntity = {
     id: 1,
     title: 'Test Post',
     content: 'This is a test post',
