@@ -1,5 +1,6 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+
 import { Post } from '../../posts/entities/post.entity';
 
 export enum OgType {
@@ -8,7 +9,6 @@ export enum OgType {
   VIDEO = 'video.movie',
   MUSIC = 'music.song',
   BOOK = 'book',
-  PROFILE = 'profile',
   PRODUCT = 'product',
   EVENT = 'event',
   RECIPE = 'recipe',
@@ -19,8 +19,10 @@ registerEnumType(OgType, {
   description: 'Open Graph content types',
 });
 
+// Docs: https://ogp.me/
+
 @ObjectType()
-@Entity()
+@Entity('post_metadata')
 export class OpenGraphMetadata {
   @Field(() => ID)
   @PrimaryGeneratedColumn()
@@ -36,10 +38,7 @@ export class OpenGraphMetadata {
   description: string;
 
   @Field(() => OgType)
-  @Column({
-    type: 'text',
-    default: OgType.ARTICLE,
-  })
+  @Column({ type: 'text', default: OgType.ARTICLE })
   type: OgType;
 
   @Field({ nullable: true })
@@ -51,15 +50,15 @@ export class OpenGraphMetadata {
   image?: string;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'image_alt' })
   imageAlt?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'image_width' })
   imageWidth?: number;
 
   @Field({ nullable: true })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'image_height' })
   imageHeight?: number;
 
   // Article specific
@@ -72,11 +71,11 @@ export class OpenGraphMetadata {
   publisher?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'datetime', nullable: true, name: 'published_time' })
   publishedTime?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'datetime', nullable: true, name: 'modified_time' })
   modifiedTime?: Date;
 
   @Field(() => [String], { nullable: true })
@@ -85,23 +84,23 @@ export class OpenGraphMetadata {
 
   // Video/Audio specific
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'video_url' })
   videoUrl?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'video_duration' })
   videoDuration?: number;
 
   @Field({ nullable: true })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'video_width' })
   videoWidth?: number;
 
   @Field({ nullable: true })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, name: 'video_height' })
   videoHeight?: number;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'audio_url' })
   audioUrl?: string;
 
   // Product specific
@@ -119,24 +118,24 @@ export class OpenGraphMetadata {
 
   // Event specific
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'datetime', nullable: true, name: 'event_start_time' })
   eventStartTime?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: 'datetime', nullable: true, name: 'event_end_time' })
   eventEndTime?: Date;
 
   // Location specific
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'location_address' })
   locationAddress?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, name: 'location_lat' })
   locationLatitude?: number;
 
   @Field({ nullable: true })
-  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, name: 'location_lon' })
   locationLongitude?: number;
 
   // Locale
@@ -145,25 +144,28 @@ export class OpenGraphMetadata {
   locale: string;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'site_name' })
   siteName?: string;
 
   // Twitter specific
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'twitter_card' })
   twitterCard?: string;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'twitter_site' })
   twitterSite?: string;
 
   @Field({ nullable: true })
-  @Column({ nullable: true })
+  @Column({ nullable: true, name: 'twitter_creator' })
   twitterCreator?: string;
 
-  // Relationship
+  @Field(() => ID)
+  @Column({ name: 'post_id' })
+  postId: number;
+
   @Field(() => Post)
-  @OneToOne(() => Post, post => post.openGraphMetadata, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @OneToOne(() => Post, (post) => post.openGraphMetadata, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'post_id' })
   post: Post;
 }

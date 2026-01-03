@@ -3,31 +3,33 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
-import { Profile } from '../../profiles/entities/profile.entity';
 import { Post } from '../../posts/entities/post.entity';
 import { Category } from '../../categories/entities/category.entity';
 import { OpenGraphMetadata } from '../../open-graph/entities/open-graph-metadata.entity';
 import { OgType } from '../../open-graph/entities/open-graph-metadata.entity';
+import { PasswordUtil } from '../../utils/password.util';
+
+const MOCK_PASSWORD = 'Password!1';
 
 @Injectable()
 export class SeederService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    @InjectRepository(Profile)
-    private profileRepository: Repository<Profile>,
     @InjectRepository(Post)
     private postRepository: Repository<Post>,
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
     @InjectRepository(OpenGraphMetadata)
     private openGraphRepository: Repository<OpenGraphMetadata>,
+    private readonly passwordUtil: PasswordUtil,
   ) {}
 
   async seed() {
     console.log('Starting database seeding...');
 
-    await this.clearExistingData();
+    // await this.clearExistingData();
+
     const categories = await this.createCategories();
     await this.createUser1WithPosts(categories);
     await this.createUser2WithPosts(categories);
@@ -36,20 +38,18 @@ export class SeederService {
     console.log('Database seeding completed successfully!');
     console.log('Summary:');
     console.log('- 3 Users created');
-    console.log('- 3 Profiles created (one-to-one with users)');
     console.log('- 3 Categories created');
     console.log('- 6 Posts created (with many-to-many relationships to categories)');
     console.log('- 6 OpenGraph metadata records created (with rich social sharing data)');
   }
 
-  private async clearExistingData() {
-    await this.openGraphRepository.clear();
-    await this.postRepository.clear();
-    await this.profileRepository.clear();
-    await this.categoryRepository.clear();
-    await this.userRepository.clear();
-    console.log('Cleared existing data');
-  }
+  // private async clearExistingData() {
+  //   await this.openGraphRepository.clear();
+  //   await this.postRepository.clear();
+  //   await this.categoryRepository.clear();
+  //   await this.userRepository.clear();
+  //   console.log('Cleared existing data');
+  // }
 
   private async createCategories(): Promise<Category[]> {
     const techCategory = this.categoryRepository.create({
@@ -77,18 +77,10 @@ export class SeederService {
       email: 'john.doe@example.com',
       name: 'John Doe',
       age: 28,
+      password: await this.passwordUtil.hash(MOCK_PASSWORD),
     });
 
     const savedUser1 = await this.userRepository.save(user1);
-
-    const profile1 = this.profileRepository.create({
-      bio: 'Full-stack developer passionate about building scalable applications',
-      website: 'https://johndoe.dev',
-      location: 'San Francisco, CA',
-      user: savedUser1,
-    });
-
-    await this.profileRepository.save(profile1);
 
     const post1 = this.postRepository.create({
       title: 'Getting Started with GraphQL',
@@ -158,7 +150,7 @@ export class SeederService {
 
     await this.openGraphRepository.save(og2);
 
-    console.log('Created User 1 with profile and posts with OpenGraph metadata');
+    console.log('Created User 1 with posts with OpenGraph metadata');
   }
 
   private async createUser2WithPosts(categories: Category[]) {
@@ -166,18 +158,10 @@ export class SeederService {
       email: 'jane.smith@example.com',
       name: 'Jane Smith',
       age: 32,
+      password: await this.passwordUtil.hash(MOCK_PASSWORD),
     });
 
     const savedUser2 = await this.userRepository.save(user2);
-
-    const profile2 = this.profileRepository.create({
-      bio: 'Digital nomad, travel blogger, and coffee enthusiast',
-      website: 'https://janesmithtravels.com',
-      location: 'Barcelona, Spain',
-      user: savedUser2,
-    });
-
-    await this.profileRepository.save(profile2);
 
     const post3 = this.postRepository.create({
       title: 'Working Remotely from Barcelona',
@@ -253,7 +237,7 @@ export class SeederService {
 
     await this.openGraphRepository.save(og4);
 
-    console.log('Created User 2 with profile and posts with OpenGraph metadata');
+    console.log('Created User 2 with posts with OpenGraph metadata');
   }
 
   private async createUser3WithPosts(categories: Category[]) {
@@ -261,18 +245,10 @@ export class SeederService {
       email: 'bob.wilson@example.com',
       name: 'Bob Wilson',
       age: 35,
+      password: await this.passwordUtil.hash(MOCK_PASSWORD),
     });
 
     const savedUser3 = await this.userRepository.save(user3);
-
-    const profile3 = this.profileRepository.create({
-      bio: 'Tech lead and architecture enthusiast',
-      website: 'https://bobwilson.tech',
-      location: 'London, UK',
-      user: savedUser3,
-    });
-
-    await this.profileRepository.save(profile3);
 
     const post5 = this.postRepository.create({
       title: 'Microservices Architecture Patterns',
@@ -347,6 +323,6 @@ export class SeederService {
 
     await this.openGraphRepository.save(og6);
 
-    console.log('Created User 3 with profile and posts with OpenGraph metadata');
+    console.log('Created User 3 with posts with OpenGraph metadata');
   }
 }

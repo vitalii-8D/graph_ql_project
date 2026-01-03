@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+
 import { UsersResolver } from './users.resolver';
 import { UsersService } from './users.service';
 import { User } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
-import { NotFoundException } from '@nestjs/common';
 
 describe('UsersResolver', () => {
   let resolver: UsersResolver;
@@ -15,7 +16,7 @@ describe('UsersResolver', () => {
     email: 'test@example.com',
     name: 'Test User',
     age: 25,
-    profile: undefined,
+    password: 'password',
     posts: [],
   };
 

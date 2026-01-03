@@ -12,6 +12,10 @@ export class CreateUserInput {
   @IsNotEmpty()
   name: string;
 
+  @Field()
+  @IsNotEmpty()
+  password: string;
+
   @Field({ nullable: true })
   @IsOptional()
   @IsNumber()

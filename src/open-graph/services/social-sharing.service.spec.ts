@@ -220,7 +220,7 @@ describe('SocialSharingService', () => {
         type: OgType.ARTICLE,
         locationAddress: '123 Main St, City',
         locationLatitude: 40.7128,
-        locationLongitude: -74.0060,
+        locationLongitude: -74.006,
       } as OpenGraphMetadata;
 
       const result = service.generateOpenGraphTags(metadata, 'https://example.com');

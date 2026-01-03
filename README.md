@@ -7,7 +7,7 @@ A comprehensive GraphQL API built with NestJS, TypeORM, and SQLite featuring mul
 - **GraphQL API** with Apollo Server
 - **TypeORM** integration with SQLite database and migrations
 - **User Model** with email, name, and age fields
-- **One-to-One Relationship**: User ↔ Profile, Post ↔ OpenGraph Metadata
+- **One-to-One Relationship**: Post ↔ OpenGraph Metadata
 - **Many-to-Many Relationship**: Post ↔ Category
 - **Full CRUD Operations** for Users, Posts, and OpenGraph Metadata via GraphQL resolvers
 - **Social Sharing** with Facebook, Twitter, and LinkedIn integration
@@ -36,8 +36,6 @@ src/
 │   ├── posts.resolver.ts
 │   ├── posts.resolver.spec.ts
 │   └── posts.module.ts
-├── profiles/
-│   └── entities/profile.entity.ts
 ├── categories/
 │   ├── entities/category.entity.ts
 │   └── categories.module.ts
@@ -54,7 +52,7 @@ src/
 │   └── open-graph.module.ts
 ├── database/
 │   ├── database.config.ts
-│   ├── typeorm.config.ts
+│   ├── database.source.ts
 │   ├── migrations/
 │   │   └── [timestamp]-AddOpenGraphMetadata.ts
 │   └── seeds/
@@ -67,24 +65,23 @@ src/
 ## Entity Relationships
 
 ### User Entity
+
 - **Fields**: id, email, name, age
-- **One-to-One**: User has one Profile
 - **One-to-Many**: User has many Posts
 
-### Profile Entity
-- **Fields**: id, bio, website, location
-- **One-to-One**: Profile belongs to one User
-
 ### Post Entity
+
 - **Fields**: id, title, content, published, createdAt, updatedAt
 - **Many-to-One**: Post belongs to one User (author)
 - **Many-to-Many**: Post can have many Categories
 
 ### Category Entity
+
 - **Fields**: id, name, description
 - **Many-to-Many**: Category can have many Posts
 
 ### OpenGraph Metadata Entity
+
 - **Fields**: title, description, type, url, image, author, publisher, tags, video/audio URLs, product pricing, event timing, location data, Twitter card settings
 - **One-to-One**: OpenGraph Metadata belongs to one Post
 - **Purpose**: Rich social media sharing with Facebook, Twitter, LinkedIn
@@ -133,13 +130,10 @@ npm run test:cov
 ### User Queries & Mutations
 
 **Create User**
+
 ```graphql
 mutation {
-  createUser(createUserInput: {
-    email: "john@example.com"
-    name: "John Doe"
-    age: 30
-  }) {
+  createUser(createUserInput: { email: "john@example.com", name: "John Doe", age: 30 }) {
     id
     email
     name
@@ -149,6 +143,7 @@ mutation {
 ```
 
 **Get All Users**
+
 ```graphql
 query {
   users {
@@ -156,10 +151,6 @@ query {
     email
     name
     age
-    profile {
-      bio
-      website
-    }
     posts {
       title
     }
@@ -168,6 +159,7 @@ query {
 ```
 
 **Get Single User**
+
 ```graphql
 query {
   user(id: 1) {
@@ -180,13 +172,10 @@ query {
 ```
 
 **Update User**
+
 ```graphql
 mutation {
-  updateUser(updateUserInput: {
-    id: 1
-    name: "Jane Doe"
-    age: 31
-  }) {
+  updateUser(updateUserInput: { id: 1, name: "Jane Doe", age: 31 }) {
     id
     name
     age
@@ -195,6 +184,7 @@ mutation {
 ```
 
 **Delete User**
+
 ```graphql
 mutation {
   removeUser(id: 1) {
@@ -207,15 +197,18 @@ mutation {
 ### Post Queries & Mutations
 
 **Create Post**
+
 ```graphql
 mutation {
-  createPost(createPostInput: {
-    title: "My First Post"
-    content: "This is the content of my first post"
-    published: true
-    authorId: 1
-    categoryIds: [1, 2]
-  }) {
+  createPost(
+    createPostInput: {
+      title: "My First Post"
+      content: "This is the content of my first post"
+      published: true
+      authorId: 1
+      categoryIds: [1, 2]
+    }
+  ) {
     id
     title
     content
@@ -230,6 +223,7 @@ mutation {
 ```
 
 **Get All Posts**
+
 ```graphql
 query {
   posts {
@@ -251,6 +245,7 @@ query {
 ```
 
 **Get Single Post**
+
 ```graphql
 query {
   post(id: 1) {
@@ -263,13 +258,10 @@ query {
 ```
 
 **Update Post**
+
 ```graphql
 mutation {
-  updatePost(updatePostInput: {
-    id: 1
-    title: "Updated Post Title"
-    published: true
-  }) {
+  updatePost(updatePostInput: { id: 1, title: "Updated Post Title", published: true }) {
     id
     title
     published
@@ -278,6 +270,7 @@ mutation {
 ```
 
 **Delete Post**
+
 ```graphql
 mutation {
   removePost(id: 1) {
@@ -293,10 +286,7 @@ mutation {
 
 ```graphql
 query {
-  generateShareLinks(
-    url: "https://example.com/posts/amazing-post"
-    postId: 1
-  ) {
+  generateShareLinks(url: "https://example.com/posts/amazing-post", postId: 1) {
     facebook
     twitter
     linkedin
@@ -360,16 +350,15 @@ query {
 
 ```graphql
 query {
-  generateOpenGraphTags(
-    id: 1
-    baseUrl: "https://example.com"
-  )
+  generateOpenGraphTags(id: 1, baseUrl: "https://example.com")
 }
 ```
 
 For complete documentation on social sharing features, see [SOCIAL-SHARING.md](SOCIAL-SHARING.md).
 
 For all GraphQL queries and examples, see [social-sharing-queries.md](social-sharing-queries.md).
+
+For testing the social sharing functionality, see [TESTING-GUIDE.md](TESTING-GUIDE.md).
 
 ## Database
 
@@ -395,6 +384,7 @@ The project uses SQLite for simplicity. The database file (`database.sqlite`) is
 ## Test Coverage
 
 The project includes comprehensive unit tests for:
+
 - User Resolver (8 test cases)
 - Post Resolver (8 test cases)
 - Social Sharing Service (18 test cases)
