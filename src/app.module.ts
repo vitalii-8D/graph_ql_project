@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
@@ -16,7 +16,6 @@ import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
 
 const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
-const staticFolder = join(process.cwd(), 'public');
 
 @Module({
   imports: [
