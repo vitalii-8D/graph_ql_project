@@ -12,6 +12,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
 
@@ -35,6 +36,7 @@ const staticFolder = join(process.cwd(), 'public');
     OpenGraphModule,
     SeederModule,
     AuthModule,
+    ChatModule,
   ],
   controllers: [AppController],
 })

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        input, textarea, button, select {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input, textarea, select {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #fafafa;
+        }
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background-color: #e3f2fd;
+        }
+        .message.admin {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .message.system {
+            background-color: #f0f0f0;
+            font-style: italic;
+        }
+        .message-time {
+            font-size: 11px;
+            color: #666;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Chat Test Client</h1>
+
+    <div class="container">
+        <h2>1. Connect to WebSocket</h2>
+        <input type="text" id="jwtToken" placeholder="Enter JWT Token (get it from login GraphQL mutation)">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()" disabled id="disconnectBtn">Disconnect</button>
+        <div id="status" class="status disconnected">Disconnected</div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h2>2. Join a Room</h2>
+            <input type="number" id="joinRoomId" placeholder="Room ID">
+            <button onclick="joinRoom()" id="joinRoomBtn" disabled>Join Room</button>
+            <button onclick="leaveRoom()" id="leaveRoomBtn" disabled>Leave Current Room</button>
+            <div id="currentRoom" style="margin-top: 10px; font-weight: bold;">Not in a room</div>
+        </div>
+
+        <div class="container">
+            <h2>3. Send Message</h2>
+            <textarea id="messageText" placeholder="Enter your message" rows="3"></textarea>
+            <button onclick="sendMessage()" id="sendMessageBtn" disabled>Send Message</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Admin Broadcast (Admin Only)</h2>
+        <textarea id="broadcastText" placeholder="Enter broadcast message" rows="2"></textarea>
+        <button onclick="adminBroadcast()" id="adminBroadcastBtn" disabled>Broadcast to All Rooms</button>
+    </div>
+
+    <div class="container">
+        <h2>Messages</h2>
+        <div id="messages"></div>
+    </div>
+
+    <div class="container">
+        <h2>GraphQL Queries for Testing</h2>
+        <p><strong>Create Room (Admin only):</strong></p>
+        <pre>mutation {
+  createChatRoom(createRoomInput: {
+    name: "General Chat"
+    description: "Main discussion room"
+  }) {
+    id
+    name
+    description
+  }
+}</pre>
+
+        <p><strong>Get All Rooms:</strong></p>
+        <pre>query {
+  chatRooms {
+    id
+    name
+    description
+    createdAt
+  }
+}</pre>
+
+        <p><strong>Get Room Messages:</strong></p>
+        <pre>query {
+  chatRoomMessages(roomId: 1) {
+    id
+    message
+    user {
+      name
+      email
+    }
+    createdAt
+  }
+}</pre>
+    </div>
+
+    <script>
+        let socket;
+        let currentRoomId = null;
+
+        function addMessage(text, type = 'system') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `<div class="message-time">${time}</div>${text}`;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${connected ? 'connected' : 'disconnected'}`;
+            statusDiv.textContent = connected ? 'Connected' : 'Disconnected';
+
+            document.getElementById('disconnectBtn').disabled = !connected;
+            document.getElementById('joinRoomBtn').disabled = !connected;
+            document.getElementById('adminBroadcastBtn').disabled = !connected;
+        }
+
+        function connect() {
+            const token = document.getElementById('jwtToken').value;
+            if (!token) {
+                alert('Please enter a JWT token');
+                return;
+            }
+
+            socket = io('http://localhost:3000', {
+                extraHeaders: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            socket.on('connect', () => {
+                addMessage('✓ Connected to WebSocket server', 'system');
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', () => {
+                addMessage('✗ Disconnected from WebSocket server', 'system');
+                updateStatus(false);
+                currentRoomId = null;
+                updateRoomStatus();
+            });
+
+            socket.on('joinedRoom', (data) => {
+                currentRoomId = data.room.id;
+                updateRoomStatus();
+                addMessage(`✓ Joined room: ${data.room.name}`, 'system');
+
+                // Display message history
+                if (data.messages && data.messages.length > 0) {
+                    addMessage(`--- Message History (${data.messages.length} messages) ---`, 'system');
+                    data.messages.forEach(msg => {
+                        addMessage(`<strong>${msg.user.name}:</strong> ${msg.message}`, 'normal');
+                    });
+                    addMessage('--- End of History ---', 'system');
+                } else {
+                    addMessage('No previous messages in this room', 'system');
+                }
+            });
+
+            socket.on('leftRoom', (data) => {
+                addMessage(`✓ Left room ${data.roomId}`, 'system');
+                currentRoomId = null;
+                updateRoomStatus();
+            });
+
+            socket.on('newMessage', (data) => {
+                const type = data.isAdminBroadcast ? 'admin' : 'normal';
+                const prefix = data.isAdminBroadcast ? '[ADMIN BROADCAST] ' : '';
+                addMessage(`${prefix}<strong>${data.user.name}:</strong> ${data.message}`, type);
+            });
+
+            socket.on('userJoined', (data) => {
+                addMessage(`→ ${data.userName} joined the room`, 'system');
+            });
+
+            socket.on('userLeft', (data) => {
+                addMessage(`← ${data.userName} left the room`, 'system');
+            });
+
+            socket.on('messageSent', (data) => {
+                if (data.success) {
+                    document.getElementById('messageText').value = '';
+                }
+            });
+
+            socket.on('broadcastSent', (data) => {
+                if (data.success) {
+                    addMessage(`✓ Broadcast sent to ${data.roomCount} rooms`, 'system');
+                    document.getElementById('broadcastText').value = '';
+                }
+            });
+
+            socket.on('error', (data) => {
+                addMessage(`✗ Error (${data.event}): ${data.message}`, 'system');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        function updateRoomStatus() {
+            const roomDiv = document.getElementById('currentRoom');
+            const inRoom = currentRoomId !== null;
+            roomDiv.textContent = inRoom ? `In room: ${currentRoomId}` : 'Not in a room';
+            document.getElementById('leaveRoomBtn').disabled = !inRoom;
+            document.getElementById('sendMessageBtn').disabled = !inRoom;
+        }
+
+        function joinRoom() {
+            const roomId = parseInt(document.getElementById('joinRoomId').value);
+            if (!roomId) {
+                alert('Please enter a room ID');
+                return;
+            }
+            socket.emit('joinRoom', { roomId });
+        }
+
+        function leaveRoom() {
+            if (currentRoomId) {
+                socket.emit('leaveRoom', { roomId: currentRoomId });
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageText').value.trim();
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+            if (!currentRoomId) {
+                alert('Please join a room first');
+                return;
+            }
+            socket.emit('sendMessage', { roomId: currentRoomId, message });
+        }
+
+        function adminBroadcast() {
+            const message = document.getElementById('broadcastText').value.trim();
+            if (!message) {
+                alert('Please enter a broadcast message');
+                return;
+            }
+            socket.emit('adminBroadcast', { message });
+        }
+    </script>
+</body>
+</html>

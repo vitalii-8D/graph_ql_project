@@ -14,6 +14,25 @@ type CategoryEntity {
   posts: [PostEntity!]
 }
 
+type ChatMessageEntity {
+  createdAt: DateTime!
+  id: ID!
+  message: String!
+  room: ChatRoomEntity!
+  roomId: ID!
+  user: UserEntity!
+  userId: ID!
+}
+
+type ChatRoomEntity {
+  createdAt: DateTime!
+  description: String
+  id: ID!
+  messages: [ChatMessageEntity!]!
+  name: String!
+  updatedAt: DateTime!
+}
+
 input CreateOpenGraphInput {
   audioUrl: String
   author: String
@@ -55,6 +74,11 @@ input CreatePostInput {
   title: String!
 }
 
+input CreateRoomInput {
+  description: String
+  name: String!
+}
+
 input CreateUserInput {
   age: Float
   email: String!
@@ -73,6 +97,7 @@ input LoginInput {
 }
 
 type Mutation {
+  createChatRoom(createRoomInput: CreateRoomInput!): ChatRoomEntity!
   createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadataEntity!
   createPost(createPostInput: CreatePostInput!): PostEntity!
   createUser(createUserInput: CreateUserInput!): UserEntity!
@@ -149,6 +174,9 @@ type PostEntity {
 
 type Query {
   categories: [CategoryEntity!]!
+  chatRoom(id: ID!): ChatRoomEntity!
+  chatRoomMessages(roomId: ID!): [ChatMessageEntity!]!
+  chatRooms: [ChatRoomEntity!]!
   generateOpenGraphTags(baseUrl: String!, id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
   me: UserEntity!
