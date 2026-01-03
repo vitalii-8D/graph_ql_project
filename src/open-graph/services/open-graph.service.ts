@@ -1,0 +1,71 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+import { OpenGraphMetadata } from '../entities/open-graph-metadata.entity';
+import { Post } from '../../posts/entities/post.entity';
+import { CreateOpenGraphInput } from '../dto/create-open-graph.input';
+import { UpdateOpenGraphInput } from '../dto/update-open-graph.input';
+
+@Injectable()
+export class OpenGraphService {
+  constructor(
+    @InjectRepository(OpenGraphMetadata)
+    private openGraphRepository: Repository<OpenGraphMetadata>,
+    @InjectRepository(Post)
+    private postRepository: Repository<Post>,
+  ) {}
+
+  async create(postId: number, createOpenGraphInput: CreateOpenGraphInput): Promise<OpenGraphMetadata> {
+    const post = await this.postRepository.findOne({ where: { id: postId } });
+
+    if (!post) {
+      throw new NotFoundException(`Post with ID ${postId} not found`);
+    }
+
+    const openGraph = this.openGraphRepository.create({
+      ...createOpenGraphInput,
+      post,
+    });
+
+    return await this.openGraphRepository.save(openGraph);
+  }
+
+  async findAll(): Promise<OpenGraphMetadata[]> {
+    return await this.openGraphRepository.find({ relations: ['post'] });
+  }
+
+  async findOne(id: number): Promise<OpenGraphMetadata> {
+    const openGraph = await this.openGraphRepository.findOne({
+      where: { id },
+      relations: ['post'],
+    });
+
+    if (!openGraph) {
+      throw new NotFoundException(`OpenGraph metadata with ID ${id} not found`);
+    }
+
+    return openGraph;
+  }
+
+  async findByPostId(postId: number): Promise<OpenGraphMetadata | null> {
+    return await this.openGraphRepository.findOne({
+      where: { post: { id: postId } },
+      relations: ['post'],
+    });
+  }
+
+  async update(updateOpenGraphInput: UpdateOpenGraphInput): Promise<OpenGraphMetadata> {
+    const openGraph = await this.findOne(updateOpenGraphInput.id);
+
+    Object.assign(openGraph, updateOpenGraphInput);
+
+    return await this.openGraphRepository.save(openGraph);
+  }
+
+  async remove(id: number): Promise<OpenGraphMetadata> {
+    const openGraph = await this.findOne(id);
+    await this.openGraphRepository.remove(openGraph);
+    return openGraph;
+  }
+}

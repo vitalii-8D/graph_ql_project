@@ -9,6 +9,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { CategoriesModule } from './categories/categories.module';
+import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
 import { databaseConfig } from './database/database.config';
 
@@ -26,6 +27,7 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
     UsersModule,
     PostsModule,
     CategoriesModule,
+    OpenGraphModule,
     SeederModule,
   ],
   controllers: [AppController],

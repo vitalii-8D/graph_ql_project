@@ -8,9 +8,11 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Category } from '../../categories/entities/category.entity';
+import { OpenGraphMetadata } from '../../open-graph/entities/open-graph-metadata.entity';
 
 @ObjectType()
 @Entity()
@@ -47,4 +49,8 @@ export class Post {
   @Field()
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Field(() => OpenGraphMetadata, { nullable: true })
+  @OneToOne(() => OpenGraphMetadata, metadata => metadata.post, { cascade: true, eager: true })
+  openGraphMetadata?: OpenGraphMetadata;
 }

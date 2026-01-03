@@ -1,16 +1,19 @@
 # GraphQL Project with NestJS
 
-A comprehensive GraphQL API built with NestJS, TypeORM, and SQLite featuring multiple entity relationships and full CRUD operations.
+A comprehensive GraphQL API built with NestJS, TypeORM, and SQLite featuring multiple entity relationships, full CRUD operations, and social sharing with Open Graph Protocol.
 
 ## Features
 
 - **GraphQL API** with Apollo Server
-- **TypeORM** integration with SQLite database
+- **TypeORM** integration with SQLite database and migrations
 - **User Model** with email, name, and age fields
-- **One-to-One Relationship**: User ↔ Profile
+- **One-to-One Relationship**: User ↔ Profile, Post ↔ OpenGraph Metadata
 - **Many-to-Many Relationship**: Post ↔ Category
-- **Full CRUD Operations** for Users and Posts via GraphQL resolvers
-- **Comprehensive Test Coverage** for all resolvers
+- **Full CRUD Operations** for Users, Posts, and OpenGraph Metadata via GraphQL resolvers
+- **Social Sharing** with Facebook, Twitter, and LinkedIn integration
+- **Open Graph Protocol** implementation for rich media sharing
+- **Database Seeders** with sample data including OpenGraph metadata
+- **Comprehensive Test Coverage** for all resolvers and services
 - **Input Validation** using class-validator
 
 ## Project Structure
@@ -38,8 +41,26 @@ src/
 ├── categories/
 │   ├── entities/category.entity.ts
 │   └── categories.module.ts
+├── open-graph/
+│   ├── entities/open-graph-metadata.entity.ts
+│   ├── dto/create-open-graph.input.ts
+│   ├── dto/update-open-graph.input.ts
+│   ├── services/
+│   │   ├── open-graph.service.ts
+│   │   ├── social-sharing.service.ts
+│   │   └── social-sharing.service.spec.ts
+│   ├── resolvers/open-graph.resolver.ts
+│   ├── types/share-links.type.ts
+│   └── open-graph.module.ts
 ├── database/
-│   └── database.config.ts
+│   ├── database.config.ts
+│   ├── typeorm.config.ts
+│   ├── migrations/
+│   │   └── [timestamp]-AddOpenGraphMetadata.ts
+│   └── seeds/
+│       ├── seeder-with-opengraph.service.ts
+│       ├── seeder.module.ts
+│       └── seed.ts
 └── app.module.ts
 ```
 
@@ -63,10 +84,25 @@ src/
 - **Fields**: id, name, description
 - **Many-to-Many**: Category can have many Posts
 
+### OpenGraph Metadata Entity
+- **Fields**: title, description, type, url, image, author, publisher, tags, video/audio URLs, product pricing, event timing, location data, Twitter card settings
+- **One-to-One**: OpenGraph Metadata belongs to one Post
+- **Purpose**: Rich social media sharing with Facebook, Twitter, LinkedIn
+
 ## Installation
 
 ```bash
 npm install
+```
+
+## Database Setup
+
+```bash
+# Run migrations
+npm run migration:run
+
+# Seed the database with sample data (includes OpenGraph metadata)
+npm run seed
 ```
 
 ## Running the Application
@@ -251,13 +287,99 @@ mutation {
 }
 ```
 
+## Social Sharing & Open Graph Protocol
+
+### Generate Social Media Share Links
+
+```graphql
+query {
+  generateShareLinks(
+    url: "https://example.com/posts/amazing-post"
+    postId: 1
+  ) {
+    facebook
+    twitter
+    linkedin
+  }
+}
+```
+
+### Create OpenGraph Metadata for Rich Sharing
+
+```graphql
+mutation {
+  createOpenGraphMetadata(
+    postId: 1
+    createOpenGraphInput: {
+      title: "Amazing Blog Post"
+      description: "Learn about GraphQL and NestJS in this comprehensive guide"
+      type: article
+      url: "https://example.com/posts/amazing-post"
+      image: "https://example.com/images/preview.jpg"
+      imageAlt: "GraphQL tutorial preview image"
+      imageWidth: 1200
+      imageHeight: 630
+      author: "John Doe"
+      publisher: "Tech Blog"
+      tags: ["GraphQL", "NestJS", "Tutorial"]
+      locale: "en_US"
+      siteName: "My Tech Blog"
+      twitterCard: "summary_large_image"
+      twitterSite: "@mytechblog"
+      twitterCreator: "@johndoe"
+    }
+  ) {
+    id
+    title
+    url
+    type
+  }
+}
+```
+
+### Get OpenGraph Metadata
+
+```graphql
+query {
+  openGraphMetadata(id: 1) {
+    title
+    description
+    type
+    url
+    image
+    author
+    tags
+    post {
+      title
+    }
+  }
+}
+```
+
+### Generate HTML Meta Tags
+
+```graphql
+query {
+  generateOpenGraphTags(
+    id: 1
+    baseUrl: "https://example.com"
+  )
+}
+```
+
+For complete documentation on social sharing features, see [SOCIAL-SHARING.md](SOCIAL-SHARING.md).
+
+For all GraphQL queries and examples, see [social-sharing-queries.md](social-sharing-queries.md).
+
 ## Database
 
 The project uses SQLite for simplicity. The database file (`database.sqlite`) is automatically created on first run.
 
 - **Type**: SQLite
-- **Auto-sync**: Enabled (automatically creates/updates tables)
+- **Migrations**: Enabled (use `npm run migration:run` to apply schema changes)
+- **Auto-sync**: Disabled (use migrations in production)
 - **Logging**: Enabled (SQL queries logged to console)
+- **Seeders**: Sample data with OpenGraph metadata (`npm run seed`)
 
 ## Technology Stack
 
@@ -275,11 +397,17 @@ The project uses SQLite for simplicity. The database file (`database.sqlite`) is
 The project includes comprehensive unit tests for:
 - User Resolver (8 test cases)
 - Post Resolver (8 test cases)
+- Social Sharing Service (18 test cases)
+  - Facebook, Twitter, LinkedIn share link generation
+  - Open Graph HTML tag generation
+  - All content types (article, product, video, event, etc.)
+  - URL encoding and special character handling
+  - HTML escaping in meta tag content
 - All CRUD operations
 - Error handling scenarios
 - Edge cases
 
-All tests pass successfully with 100% coverage of resolver logic.
+All tests pass successfully with 100% coverage of resolver and service logic.
 
 ## Deployment
 

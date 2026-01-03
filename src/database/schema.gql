@@ -9,6 +9,40 @@ type Category {
   posts: [Post!]
 }
 
+input CreateOpenGraphInput {
+  audioUrl: String
+  author: String
+  availability: String
+  currency: String
+  description: String!
+  eventEndTime: DateTime
+  eventStartTime: DateTime
+  image: String
+  imageAlt: String
+  imageHeight: Int
+  imageWidth: Int
+  locale: String! = "en_US"
+  locationAddress: String
+  locationLatitude: Float
+  locationLongitude: Float
+  modifiedTime: DateTime
+  price: Float
+  publishedTime: DateTime
+  publisher: String
+  siteName: String
+  tags: [String!]
+  title: String!
+  twitterCard: String
+  twitterCreator: String
+  twitterSite: String
+  type: OgType! = ARTICLE
+  url: String
+  videoDuration: Int
+  videoHeight: Int
+  videoUrl: String
+  videoWidth: Int
+}
+
 input CreatePostInput {
   authorId: ID!
   categoryIds: [ID!]
@@ -29,12 +63,64 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Mutation {
+  createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadata!
   createPost(createPostInput: CreatePostInput!): Post!
   createUser(createUserInput: CreateUserInput!): User!
+  removeOpenGraphMetadata(id: ID!): OpenGraphMetadata!
   removePost(id: ID!): Post!
   removeUser(id: ID!): User!
+  updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadata!
   updatePost(updatePostInput: UpdatePostInput!): Post!
   updateUser(updateUserInput: UpdateUserInput!): User!
+}
+
+"""Open Graph content types"""
+enum OgType {
+  ARTICLE
+  BOOK
+  EVENT
+  MUSIC
+  PRODUCT
+  PROFILE
+  RECIPE
+  VIDEO
+  WEBSITE
+}
+
+type OpenGraphMetadata {
+  audioUrl: String
+  author: String
+  availability: String
+  currency: String
+  description: String!
+  eventEndTime: DateTime
+  eventStartTime: DateTime
+  id: ID!
+  image: String
+  imageAlt: String
+  imageHeight: Float
+  imageWidth: Float
+  locale: String
+  locationAddress: String
+  locationLatitude: Float
+  locationLongitude: Float
+  modifiedTime: DateTime
+  post: Post!
+  price: Float
+  publishedTime: DateTime
+  publisher: String
+  siteName: String
+  tags: [String!]
+  title: String!
+  twitterCard: String
+  twitterCreator: String
+  twitterSite: String
+  type: OgType!
+  url: String
+  videoDuration: Float
+  videoHeight: Float
+  videoUrl: String
+  videoWidth: Float
 }
 
 type Post {
@@ -43,6 +129,7 @@ type Post {
   content: String!
   createdAt: DateTime!
   id: ID!
+  openGraphMetadata: OpenGraphMetadata
   published: Boolean!
   title: String!
   updatedAt: DateTime!
@@ -57,10 +144,56 @@ type Profile {
 }
 
 type Query {
+  generateOpenGraphTags(baseUrl: String!, id: ID!): String!
+  generateShareLinks(postId: ID, url: String!): ShareLinks!
+  openGraphMetadata(id: ID!): OpenGraphMetadata!
+  openGraphMetadataByPost(postId: ID!): OpenGraphMetadata
+  openGraphMetadataList: [OpenGraphMetadata!]!
   post(id: ID!): Post!
   posts: [Post!]!
   user(id: ID!): User!
   users: [User!]!
+}
+
+type ShareLinks {
+  facebook: String!
+  linkedin: String!
+  twitter: String!
+}
+
+input UpdateOpenGraphInput {
+  audioUrl: String
+  author: String
+  availability: String
+  currency: String
+  description: String
+  eventEndTime: DateTime
+  eventStartTime: DateTime
+  id: ID!
+  image: String
+  imageAlt: String
+  imageHeight: Int
+  imageWidth: Int
+  locale: String = "en_US"
+  locationAddress: String
+  locationLatitude: Float
+  locationLongitude: Float
+  modifiedTime: DateTime
+  price: Float
+  publishedTime: DateTime
+  publisher: String
+  siteName: String
+  tags: [String!]
+  title: String
+  twitterCard: String
+  twitterCreator: String
+  twitterSite: String
+  type: OgType = ARTICLE
+  url: String
+  videoDuration: Int
+  videoHeight: Int
+  videoUrl: String
+  videoWidth: Int
 }
 
 input UpdatePostInput {
