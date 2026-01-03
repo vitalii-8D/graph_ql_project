@@ -60,7 +60,7 @@ export class OpenGraphService {
 
     Object.assign(openGraph, updateOpenGraphInput);
 
-    return await this.openGraphRepository.save(openGraph);
+    return await this.openGraphRepository.save({ ...openGraph, id: +openGraph.id });
   }
 
   async remove(id: number): Promise<OpenGraphMetadata> {

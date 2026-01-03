@@ -10,5 +10,5 @@ export const databaseConfig: DataSourceOptions = {
   database: 'database.sqlite',
   entities: [Category, User, Post, OpenGraphMetadata],
   synchronize: false,
-  logging: true,
+  logging: false,
 };

@@ -13,6 +13,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
 import { databaseConfig } from './database/database.config';
+import { AppController } from './app.controller';
 
 const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
 const staticFolder = join(process.cwd(), 'public');
@@ -27,9 +28,9 @@ const staticFolder = join(process.cwd(), 'public');
       sortSchema: true,
       playground: true,
     }),
-    ServeStaticModule.forRoot({
-      rootPath: staticFolder,
-    }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: staticFolder,
+    // }),
     TypeOrmModule.forRoot(databaseConfig),
     UsersModule,
     PostsModule,
@@ -37,5 +38,6 @@ const staticFolder = join(process.cwd(), 'public');
     OpenGraphModule,
     SeederModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

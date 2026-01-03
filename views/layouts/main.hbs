@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+
+    <!-- Basic Meta Tags -->
+    <title>{{{title}}}</title>
+    <meta name='description' content='{{{description}}}' />
+
+    {{#if og}}
+      <!-- Open Graph Meta Tags -->
+      <meta name="title" property='og:title' content='{{{og.title}}}' />
+      <meta property='og:description' content='{{{og.description}}}' />
+      <meta property='og:type' content='{{og.type}}' />
+      {{#if og.url}}
+        <meta property='og:url' content='{{og.url}}' />
+      {{/if}}
+      {{#if og.image}}
+        <meta name="image" property='og:image' content='{{og.image}}' />
+        {{#if og.imageAlt}}
+          <meta property='og:image:alt' content='{{{og.imageAlt}}}' />
+        {{/if}}
+        {{#if og.imageWidth}}
+          <meta property='og:image:width' content='{{og.imageWidth}}' />
+        {{/if}}
+        {{#if og.imageHeight}}
+          <meta property='og:image:height' content='{{og.imageHeight}}' />
+        {{/if}}
+      {{/if}}
+      {{#if og.locale}}
+        <meta property='og:locale' content='{{og.locale}}' />
+      {{/if}}
+      {{#if og.siteName}}
+        <meta property='og:site_name' content='{{{og.siteName}}}' />
+      {{/if}}
+
+      <!-- Article-specific tags -->
+      {{#if (eq og.type 'article')}}
+        {{#if og.author}}
+          <meta name="author" property='article:author' content='{{{og.author}}}' />
+        {{/if}}
+        {{#if og.publisher}}
+          <meta property='article:publisher' content='{{{og.publisher}}}' />
+        {{/if}}
+        {{#if og.publishedTime}}
+          <meta property='article:published_time' content='{{og.publishedTime}}' />
+        {{/if}}
+        {{#if og.tags}}
+          {{#each og.tags}}
+            <meta property='article:tag' content='{{{this}}}' />
+          {{/each}}
+        {{/if}}
+      {{/if}}
+
+      <!-- Product-specific tags -->
+      {{#if (eq og.type 'product')}}
+        {{#if og.price}}
+          <meta property='product:price:amount' content='{{og.price}}' />
+        {{/if}}
+        {{#if og.currency}}
+          <meta property='product:price:currency' content='{{og.currency}}' />
+        {{/if}}
+        {{#if og.availability}}
+          <meta property='product:availability' content='{{og.availability}}' />
+        {{/if}}
+      {{/if}}
+
+      <!-- Video-specific tags -->
+      {{#if og.videoUrl}}
+        <meta property='og:video' content='{{og.videoUrl}}' />
+        {{#if og.videoDuration}}
+          <meta property='video:duration' content='{{og.videoDuration}}' />
+        {{/if}}
+      {{/if}}
+
+      <!-- Twitter Card tags -->
+      {{#if og.twitterCard}}
+
+        <!-- Twitter Card Meta Tags -->
+        <meta name='twitter:card' content='{{og.twitterCard}}' />
+        {{#if og.twitterSite}}
+          <meta name='twitter:site' content='{{og.twitterSite}}' />
+        {{/if}}
+        {{#if og.twitterCreator}}
+          <meta name='twitter:creator' content='{{og.twitterCreator}}' />
+        {{/if}}
+        <meta name='twitter:title' content='{{{og.title}}}' />
+        <meta name='twitter:description' content='{{{og.description}}}' />
+        {{#if og.image}}
+          <meta name='twitter:image' content='{{og.image}}' />
+          {{#if og.imageAlt}}
+            <meta name='twitter:image:alt' content='{{{og.imageAlt}}}' />
+          {{/if}}
+        {{/if}}
+      {{/if}}
+    {{/if}}
+
+    {{> styles }}
+    
+  </head>
+  <body>
+    {{{body}}}
+  </body>
+</html>

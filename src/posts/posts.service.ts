@@ -46,14 +46,14 @@ export class PostsService {
 
   async findAll(): Promise<Post[]> {
     return await this.postsRepository.find({
-      relations: ['author', 'categories'],
+      relations: ['author', 'categories', 'openGraphMetadata'],
     });
   }
 
   async findOne(id: number): Promise<Post> {
     const post = await this.postsRepository.findOne({
       where: { id },
-      relations: ['author', 'categories'],
+      relations: ['author', 'categories', 'openGraphMetadata'],
     });
 
     if (!post) {
@@ -85,7 +85,7 @@ export class PostsService {
       });
     }
 
-    return await this.postsRepository.save(post);
+    return await this.postsRepository.save({ ...post, id: +post.id });
   }
 
   async remove(id: number): Promise<Post> {

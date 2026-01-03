@@ -358,7 +358,46 @@ For complete documentation on social sharing features, see [SOCIAL-SHARING.md](S
 
 For all GraphQL queries and examples, see [social-sharing-queries.md](social-sharing-queries.md).
 
-For testing the social sharing functionality, see [TESTING-GUIDE.md](TESTING-GUIDE.md).
+## Testing Social Sharing
+
+### Quick Start
+
+1. **Start your NestJS app**:
+   ```bash
+   npm run start:dev
+   ```
+
+2. **View the dynamically generated test pages**:
+   ```bash
+   # Open in browser:
+   http://localhost:3000/posts
+   ```
+
+   All posts are now dynamically rendered with fresh data from the database using Handlebars templates.
+
+3. **Make it public** for rich social media previews:
+   ```bash
+   ngrok http 3000
+   ```
+
+4. **Test with platform debuggers**:
+   - Facebook: https://developers.facebook.com/tools/debug/
+   - Twitter: https://cards-dev.twitter.com/validator
+   - LinkedIn: https://www.linkedin.com/post-inspector/
+
+### Dynamic Rendering Features
+
+The application now uses **Handlebars template engine** for dynamic page rendering:
+
+- **`/posts`** - Lists all posts with fresh data from the database
+- **`/posts/:id`** - Displays individual post with OpenGraph metadata
+- All pages include:
+  - Dynamic OpenGraph meta tags
+  - Social sharing buttons (Facebook, Twitter, LinkedIn)
+  - Fresh content loaded from the database on each request
+  - Proper HTML escaping and URL encoding
+
+No need to generate static pages anymore - everything is rendered on-demand!
 
 ## Database
 

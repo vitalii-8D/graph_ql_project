@@ -44,7 +44,7 @@ export class UsersService {
 
     Object.assign(user, updateUserInput);
 
-    return await this.usersRepository.save(user);
+    return await this.usersRepository.save({ ...user, id: +user.id });
   }
 
   async remove(id: number): Promise<User> {
