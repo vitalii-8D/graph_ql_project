@@ -1,0 +1,89 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Category {
+  description: String
+  id: ID!
+  name: String!
+  posts: [Post!]
+}
+
+input CreatePostInput {
+  authorId: ID!
+  categoryIds: [ID!]
+  content: String!
+  published: Boolean! = false
+  title: String!
+}
+
+input CreateUserInput {
+  age: Float
+  email: String!
+  name: String!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  createPost(createPostInput: CreatePostInput!): Post!
+  createUser(createUserInput: CreateUserInput!): User!
+  removePost(id: ID!): Post!
+  removeUser(id: ID!): User!
+  updatePost(updatePostInput: UpdatePostInput!): Post!
+  updateUser(updateUserInput: UpdateUserInput!): User!
+}
+
+type Post {
+  author: User!
+  categories: [Category!]
+  content: String!
+  createdAt: DateTime!
+  id: ID!
+  published: Boolean!
+  title: String!
+  updatedAt: DateTime!
+}
+
+type Profile {
+  bio: String!
+  id: ID!
+  location: String
+  user: User!
+  website: String
+}
+
+type Query {
+  post(id: ID!): Post!
+  posts: [Post!]!
+  user(id: ID!): User!
+  users: [User!]!
+}
+
+input UpdatePostInput {
+  authorId: ID
+  categoryIds: [ID!]
+  content: String
+  id: ID!
+  published: Boolean = false
+  title: String
+}
+
+input UpdateUserInput {
+  age: Float
+  email: String
+  id: ID!
+  name: String
+}
+
+type User {
+  age: Float
+  email: String!
+  id: ID!
+  name: String!
+  posts: [Post!]
+  profile: Profile
+}
