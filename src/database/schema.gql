@@ -148,8 +148,10 @@ type PostEntity {
 }
 
 type Query {
+  categories: [CategoryEntity!]!
   generateOpenGraphTags(baseUrl: String!, id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
+  me: UserEntity!
   openGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   openGraphMetadataByPost(postId: ID!): OpenGraphMetadataEntity
   openGraphMetadataList: [OpenGraphMetadataEntity!]!
