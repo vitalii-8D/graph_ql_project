@@ -43,10 +43,7 @@ export class ChatService {
     });
   }
 
-  async saveMessage(
-    userId: number,
-    sendMessageInput: SendMessageInput,
-  ): Promise<ChatMessageEntity> {
+  async saveMessage(userId: number, sendMessageInput: SendMessageInput): Promise<ChatMessageEntity> {
     const { roomId, message } = sendMessageInput;
 
     // Verify room exists

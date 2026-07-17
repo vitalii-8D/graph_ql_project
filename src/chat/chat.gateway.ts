@@ -15,7 +15,7 @@ import { ChatService } from './chat.service';
 import { SendMessageInput } from './dto/send-message.input';
 import { ChatMessageEntity } from './entities/chat-message.entity';
 import { UsersService } from '../users/users.service';
-import { UserRole } from '../users/enums/user-role.enum';
+import { UserRole } from '../users/enums';
 
 @WebSocketGateway({
   cors: {
@@ -41,8 +41,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const secret =
-        this.configService.get<string>('JWT_SECRET') || 'default-secret';
+      const secret = this.configService.get<string>('JWT_SECRET') || 'default-secret';
       const payload = this.jwtService.verify(token, { secret });
 
       const user = await this.usersService.findOne(payload.id);
@@ -74,10 +73,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('joinRoom')
-  async handleJoinRoom(
-    @MessageBody() data: { roomId: number },
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleJoinRoom(@MessageBody() data: { roomId: number }, @ConnectedSocket() client: Socket) {
     try {
       const room = await this.chatService.getRoom(data.roomId);
       const roomName = `room-${data.roomId}`;
@@ -101,9 +97,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: data.roomId,
       });
 
-      console.log(
-        `User ${client.data.user.email} joined room ${data.roomId}`,
-      );
+      console.log(`User ${client.data.user.email} joined room ${data.roomId}`);
     } catch (error) {
       client.emit('error', {
         message: error.message,
@@ -113,10 +107,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('leaveRoom')
-  async handleLeaveRoom(
-    @MessageBody() data: { roomId: number },
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleLeaveRoom(@MessageBody() data: { roomId: number }, @ConnectedSocket() client: Socket) {
     const roomName = `room-${data.roomId}`;
     await client.leave(roomName);
 
@@ -136,18 +127,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('sendMessage')
-  async handleMessage(
-    @MessageBody() sendMessageInput: SendMessageInput,
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleMessage(@MessageBody() sendMessageInput: SendMessageInput, @ConnectedSocket() client: Socket) {
     try {
       const userId = client.data.user.id;
 
       // Save message to database
-      const savedMessage = await this.chatService.saveMessage(
-        userId,
-        sendMessageInput,
-      );
+      const savedMessage = await this.chatService.saveMessage(userId, sendMessageInput);
 
       const roomName = `room-${sendMessageInput.roomId}`;
 
@@ -171,9 +156,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         messageId: savedMessage.id,
       });
 
-      console.log(
-        `Message sent by ${client.data.user.email} in room ${sendMessageInput.roomId}`,
-      );
+      console.log(`Message sent by ${client.data.user.email} in room ${sendMessageInput.roomId}`);
     } catch (error) {
       client.emit('error', {
         message: error.message,
@@ -183,10 +166,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('adminBroadcast')
-  async handleAdminBroadcast(
-    @MessageBody() data: { message: string },
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleAdminBroadcast(@MessageBody() data: { message: string }, @ConnectedSocket() client: Socket) {
     try {
       const user = client.data.user;
 
@@ -233,9 +213,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         messageIds: savedMessages.map((m) => m.id),
       });
 
-      console.log(
-        `Admin ${user.email} broadcasted to ${roomIds.length} rooms`,
-      );
+      console.log(`Admin ${user.email} broadcasted to ${roomIds.length} rooms`);
     } catch (error) {
       client.emit('error', {
         message: error.message,

@@ -1,12 +1,5 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  JoinColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { ChatRoomEntity } from './chat-room.entity';
 

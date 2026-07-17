@@ -2,7 +2,7 @@ import { Resolver, Mutation, Args } from '@nestjs/graphql';
 import { UnauthorizedException } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
-import { AuthResponse } from './types/auth-response.type';
+import { AuthResponse } from './dto/auth-response.dto';
 import { LoginInput } from './dto/login.input';
 
 @Resolver()

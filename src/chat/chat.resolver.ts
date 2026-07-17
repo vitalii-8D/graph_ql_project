@@ -7,7 +7,7 @@ import { CreateRoomInput } from './dto/create-room.input';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { UserRole } from '../users/enums';
 
 @Resolver()
 export class ChatResolver {
@@ -16,9 +16,7 @@ export class ChatResolver {
   @Mutation(() => ChatRoomEntity)
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async createChatRoom(
-    @Args('createRoomInput') createRoomInput: CreateRoomInput,
-  ): Promise<ChatRoomEntity> {
+  async createChatRoom(@Args('createRoomInput') createRoomInput: CreateRoomInput): Promise<ChatRoomEntity> {
     return this.chatService.createRoom(createRoomInput);
   }
 
@@ -36,9 +34,7 @@ export class ChatResolver {
 
   @Query(() => [ChatMessageEntity])
   @UseGuards(GqlAuthGuard)
-  async chatRoomMessages(
-    @Args('roomId', { type: () => ID }) roomId: number,
-  ): Promise<ChatMessageEntity[]> {
+  async chatRoomMessages(@Args('roomId', { type: () => ID }) roomId: number): Promise<ChatMessageEntity[]> {
     return this.chatService.getRoomMessages(roomId);
   }
 }

@@ -1,10 +1,10 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
-import { OpenGraphService } from '../services/open-graph.service';
-import { SocialSharingService } from '../services/social-sharing.service';
-import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
-import { CreateOpenGraphInput } from '../dto/create-open-graph.input';
-import { UpdateOpenGraphInput } from '../dto/update-open-graph.input';
-import { ShareLinks } from '../types/share-links.type';
+import { OpenGraphService } from './services/open-graph.service';
+import { SocialSharingService } from './services/social-sharing.service';
+import { OpenGraphMetadataEntity } from './entities/open-graph-metadata.entity';
+import { CreateOpenGraphInput } from './dto/create-open-graph.input';
+import { UpdateOpenGraphInput } from './dto/update-open-graph.input';
+import { ShareLinks } from './dto/share-links.dto';
 
 @Resolver(() => OpenGraphMetadataEntity)
 export class OpenGraphResolver {

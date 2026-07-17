@@ -1,14 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
+import { SocialPlatform } from '../enums';
+import { ShareLinks } from '../types';
 
-export interface ShareLinks {
-  facebook: string;
-  twitter: string;
-  linkedin: string;
-}
-
-const SocialBaseUrl = {
+const SocialBaseUrl: Record<keyof typeof SocialPlatform, string> = {
   Facebook: 'https://www.facebook.com/sharer/sharer.php',
   Twitter: 'https://twitter.com/intent/tweet',
   LinkedIn: 'https://www.linkedin.com/sharing/share-offsite/',

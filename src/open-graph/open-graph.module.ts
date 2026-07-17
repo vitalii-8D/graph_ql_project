@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
 import { OpenGraphMetadataEntity } from './entities/open-graph-metadata.entity';
 import { PostEntity } from '../posts/entities/post.entity';
 import { OpenGraphService } from './services/open-graph.service';
 import { SocialSharingService } from './services/social-sharing.service';
-import { OpenGraphResolver } from './resolvers/open-graph.resolver';
+import { OpenGraphResolver } from './open-graph.resolver';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OpenGraphMetadataEntity, PostEntity])],

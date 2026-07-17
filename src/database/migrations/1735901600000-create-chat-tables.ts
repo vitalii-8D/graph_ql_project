@@ -12,13 +12,9 @@ export class CreateChatTables1735901600000 implements MigrationInterface {
       `CREATE TABLE "chat_messages" ("id" integer PRIMARY KEY AUTOINCREMENT NOT NULL, "message" text NOT NULL, "userId" integer NOT NULL, "roomId" integer NOT NULL, "createdAt" datetime NOT NULL DEFAULT (datetime('now')), CONSTRAINT "FK_chat_message_user" FOREIGN KEY ("userId") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE NO ACTION, CONSTRAINT "FK_chat_message_room" FOREIGN KEY ("roomId") REFERENCES "chat_rooms" ("id") ON DELETE CASCADE ON UPDATE NO ACTION)`,
     );
 
-    await queryRunner.query(
-      `CREATE INDEX "IDX_chat_message_room" ON "chat_messages" ("roomId")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_chat_message_room" ON "chat_messages" ("roomId")`);
 
-    await queryRunner.query(
-      `CREATE INDEX "IDX_chat_message_user" ON "chat_messages" ("userId")`,
-    );
+    await queryRunner.query(`CREATE INDEX "IDX_chat_message_user" ON "chat_messages" ("userId")`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

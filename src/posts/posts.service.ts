@@ -4,7 +4,7 @@ import { Repository, In } from 'typeorm';
 import { PostEntity } from './entities/post.entity';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { UserEntity } from '../users/entities/user.entity';
-import { UserRole } from '../users/enums/user-role.enum';
+import { UserRole } from '../users/enums';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
 

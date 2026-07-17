@@ -66,6 +66,7 @@ export class OpenGraphService {
   async remove(id: number): Promise<OpenGraphMetadataEntity> {
     const openGraph = await this.findOne(id);
     await this.openGraphRepository.remove(openGraph);
+
     return openGraph;
   }
 }
