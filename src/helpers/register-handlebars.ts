@@ -1,4 +1,4 @@
-import { NestExpressApplication } from '@nestjs/platform-express';
+import { type NestExpressApplication } from '@nestjs/platform-express';
 import hbs from 'hbs';
 import { join } from 'path';
 
@@ -35,7 +35,7 @@ export const registerHbs = (app: NestExpressApplication) => {
     return encodeURIComponent(tags.slice(0, 2).join(','));
   });
 
-  hbs.registerHelper('eq', (a: any, b: any) => {
+  hbs.registerHelper('eq', (a: unknown, b: unknown) => {
     return a === b;
   });
 };

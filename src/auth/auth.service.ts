@@ -14,7 +14,7 @@ export class AuthService {
     private passwordUtil: PasswordUtil,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(email: string, password: string): Promise<Omit<UserEntity, 'password'> | null> {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -32,7 +32,7 @@ export class AuthService {
     return result;
   }
 
-  async login(user: UserEntity) {
+   login(user: Omit<UserEntity, 'password'>) {
     const payload: JwtPayload = { email: user.email, id: +user.id };
 
     return {

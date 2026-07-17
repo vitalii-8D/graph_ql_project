@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class CreateChatTables1735901600000 implements MigrationInterface {
   name = 'CreateChatTables1735901600000';

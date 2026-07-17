@@ -59,7 +59,7 @@ export class OpenGraphResolver {
       metadata = await this.openGraphService.findByPostId(postId);
     }
 
-    return this.socialSharingService.generateShareLinks(url, metadata || undefined);
+    return this.socialSharingService.generateShareLinks(url, metadata ?? undefined);
   }
 
   @Query(() => String, { name: 'generateOpenGraphTags' })

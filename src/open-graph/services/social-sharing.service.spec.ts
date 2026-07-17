@@ -1,6 +1,6 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { SocialSharingService } from './social-sharing.service';
-import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
+import { type OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
 import { OgType } from '../entities/open-graph-metadata.entity';
 
 describe('SocialSharingService', () => {

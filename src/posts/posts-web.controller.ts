@@ -28,7 +28,7 @@ export class PostsWebController {
     const post = await this.postsService.findOne(postId);
 
     // Prepare OpenGraph data with dynamic URL and mock image
-    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
+    const serverUrl = process.env.SERVER_URL ?? 'http://localhost:3000';
     const og = post.openGraphMetadata
       ? {
           ...post.openGraphMetadata,
@@ -41,8 +41,8 @@ export class PostsWebController {
       : null;
 
     return {
-      title: og?.title || post.title,
-      description: og?.description || post.content.substring(0, 200),
+      title: og?.title ?? post.title,
+      description: og?.description ?? post.content.substring(0, 200),
       og,
       post: {
         ...post,

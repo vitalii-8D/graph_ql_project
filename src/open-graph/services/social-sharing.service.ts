@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity, OgType } from '../entities/open-graph-metadata.entity';
 import { SocialPlatform } from '../enums';
 import { ShareLinks } from '../types';
 
@@ -80,10 +80,10 @@ export class SocialSharingService {
   /**
    * Generate Open Graph meta tags HTML
    * @param metadata - OpenGraph metadata
-   * @param baseUrl - Base URL of the application
+   * @param _baseUrl - Base URL of the application
    * @returns HTML string with meta tags
    */
-  generateOpenGraphTags(metadata: OpenGraphMetadataEntity, baseUrl: string): string {
+  generateOpenGraphTags(metadata: OpenGraphMetadataEntity, _baseUrl: string): string {
     const tags: string[] = [];
 
     // Basic Open Graph tags
@@ -117,7 +117,7 @@ export class SocialSharingService {
     }
 
     // Article specific tags
-    if (metadata.type === 'article') {
+    if (metadata.type === OgType.ARTICLE) {
       if (metadata.author) {
         tags.push(`<meta property="article:author" content="${this.escapeHtml(metadata.author)}" />`);
       }
@@ -157,7 +157,7 @@ export class SocialSharingService {
     }
 
     // Product tags
-    if (metadata.type === 'product') {
+    if (metadata.type === OgType.PRODUCT) {
       if (metadata.price !== null && metadata.price !== undefined) {
         tags.push(`<meta property="product:price:amount" content="${metadata.price}" />`);
       }
@@ -170,7 +170,7 @@ export class SocialSharingService {
     }
 
     // Event tags
-    if (metadata.type === 'event') {
+    if (metadata.type === OgType.EVENT) {
       if (metadata.eventStartTime) {
         tags.push(`<meta property="event:start_time" content="${metadata.eventStartTime.toISOString()}" />`);
       }
@@ -191,7 +191,7 @@ export class SocialSharingService {
     }
 
     // Twitter Card tags
-    tags.push(`<meta name="twitter:card" content="${metadata.twitterCard || 'summary_large_image'}" />`);
+    tags.push(`<meta name="twitter:card" content="${metadata.twitterCard ?? 'summary_large_image'}" />`);
     tags.push(`<meta name="twitter:title" content="${this.escapeHtml(metadata.title)}" />`);
     tags.push(`<meta name="twitter:description" content="${this.escapeHtml(metadata.description)}" />`);
 

@@ -1,4 +1,4 @@
-import { DataSourceOptions } from 'typeorm';
+import { type DataSourceOptions } from 'typeorm';
 
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { UserEntity } from '../users/entities/user.entity';

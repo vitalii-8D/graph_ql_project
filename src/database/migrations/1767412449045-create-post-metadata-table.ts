@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class CreatePostMetadataTable1767412449045 implements MigrationInterface {
   name = 'CreatePostMetadataTable1767412449045';
