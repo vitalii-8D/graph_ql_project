@@ -1,5 +1,7 @@
 import { ObjectType, Field } from '@nestjs/graphql';
+
 import { UserEntity } from '../../users/entities/user.entity';
+import { type AuthenticatedUser } from '../types';
 
 @ObjectType()
 export class AuthResponse {
@@ -7,5 +9,5 @@ export class AuthResponse {
   access_token: string;
 
   @Field(() => UserEntity)
-  user: Omit<UserEntity, 'password'>;
+  user: AuthenticatedUser;
 }

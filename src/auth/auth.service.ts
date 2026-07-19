@@ -3,8 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 
 import { UsersService } from '../users/users.service';
 import { PasswordUtil } from '../utils/password.util';
-import { JwtPayload } from './types';
-import { UserEntity } from '../users/entities/user.entity';
+import type { JwtPayload, AuthenticatedUser } from './types';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +13,7 @@ export class AuthService {
     private passwordUtil: PasswordUtil,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<Omit<UserEntity, 'password'> | null> {
+  async validateUser(email: string, password: string): Promise<AuthenticatedUser | null> {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -32,7 +31,7 @@ export class AuthService {
     return result;
   }
 
-   login(user: Omit<UserEntity, 'password'>) {
+  login(user: AuthenticatedUser) {
     const payload: JwtPayload = { email: user.email, id: +user.id };
 
     return {
@@ -46,7 +45,7 @@ export class AuthService {
     };
   }
 
-  async validatePayload(payload: JwtPayload): Promise<Omit<UserEntity, 'password'> | null> {
+  async validatePayload(payload: JwtPayload): Promise<AuthenticatedUser | null> {
     const user = await this.usersService.findByIdPlain(payload.id);
 
     if (!user) {

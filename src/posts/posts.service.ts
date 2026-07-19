@@ -51,6 +51,12 @@ export class PostsService {
     });
   }
 
+  async findByAuthorId(authorId: number): Promise<PostEntity[]> {
+    return await this.postsRepository.find({
+      where: { authorId },
+    });
+  }
+
   async findOne(id: number): Promise<PostEntity> {
     const post = await this.postsRepository.findOne({
       where: { id },

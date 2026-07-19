@@ -1,5 +1,6 @@
-import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import { PostEntity } from '../posts/entities/post.entity';
 
 import { UsersService } from './users.service';
 import { UserEntity } from './entities/user.entity';
@@ -22,13 +23,13 @@ export class UsersResolver {
     return this.usersService.findAll();
   }
 
-  @UseGuards(GqlAuthGuard)
+  // @UseGuards(GqlAuthGuard)
   @Query(() => UserEntity, { name: 'user' })
   findOne(@Args('id', { type: () => ID }) id: number): Promise<UserEntity> {
     return this.usersService.findOne(id);
   }
 
-  @UseGuards(GqlAuthGuard)
+  // @UseGuards(GqlAuthGuard)
   @Query(() => UserEntity, { name: 'me' })
   me(@CurrentUser() user: UserEntity): Promise<UserEntity> {
     return this.usersService.findOne(user.id);
@@ -42,5 +43,11 @@ export class UsersResolver {
   @Mutation(() => UserEntity)
   removeUser(@Args('id', { type: () => ID }) id: number): Promise<UserEntity> {
     return this.usersService.remove(id);
+  }
+
+  @ResolveField('posts', () => [PostEntity])
+  async getPosts(@Parent() author: UserEntity) {
+    const { id } = author;
+    return this.usersService.getUserPosts(id);
   }
 }

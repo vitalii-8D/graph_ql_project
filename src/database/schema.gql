@@ -251,7 +251,7 @@ type UserEntity {
   email: String!
   id: ID!
   name: String!
-  posts: [PostEntity!]
+  posts: [PostEntity!]!
   role: UserRole!
 }
 

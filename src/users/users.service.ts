@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PostEntity } from '../posts/entities/post.entity';
 
 import { UserEntity } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
@@ -12,6 +13,8 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
+    @InjectRepository(PostEntity)
+    private postsRepository: Repository<PostEntity>,
     private readonly passwordUtil: PasswordUtil,
   ) {}
 
@@ -65,5 +68,9 @@ export class UsersService {
     await this.usersRepository.remove(user);
 
     return user;
+  }
+
+  async getUserPosts(authorId: number): Promise<PostEntity[]> {
+    return this.postsRepository.find({ where: { authorId } });
   }
 }
