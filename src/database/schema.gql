@@ -11,7 +11,7 @@ type CategoryEntity {
   description: String
   id: ID!
   name: String!
-  posts: [PostEntity!]
+  posts: [PostEntity!]!
 }
 
 type ChatMessageEntity {
@@ -162,7 +162,7 @@ type OpenGraphMetadataEntity {
 type PostEntity {
   author: UserEntity!
   authorId: ID!
-  categories: [CategoryEntity!]
+  categories: [CategoryEntity!]!
   content: String!
   createdAt: DateTime!
   id: ID!

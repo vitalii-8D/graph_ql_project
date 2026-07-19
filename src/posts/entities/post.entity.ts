@@ -45,7 +45,7 @@ export class PostEntity {
   author: UserEntity;
 
   @Field(() => [CategoryEntity], { nullable: true })
-  @ManyToMany(() => CategoryEntity, (category) => category.posts, { cascade: true, eager: true })
+  @ManyToMany(() => CategoryEntity, (category) => category.posts, { cascade: true })
   @JoinTable()
   categories?: CategoryEntity[];
 
@@ -58,6 +58,6 @@ export class PostEntity {
   updatedAt: Date;
 
   @Field(() => OpenGraphMetadataEntity, { nullable: true })
-  @OneToOne(() => OpenGraphMetadataEntity, (metadata) => metadata.post, { cascade: true, eager: true })
+  @OneToOne(() => OpenGraphMetadataEntity, (metadata) => metadata.post, { cascade: true })
   openGraphMetadata?: OpenGraphMetadataEntity;
 }

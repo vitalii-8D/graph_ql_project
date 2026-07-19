@@ -46,9 +46,7 @@ export class PostsService {
   }
 
   async findAll(): Promise<PostEntity[]> {
-    return await this.postsRepository.find({
-      relations: ['author', 'categories', 'openGraphMetadata'],
-    });
+    return await this.postsRepository.find();
   }
 
   async findByAuthorId(authorId: number): Promise<PostEntity[]> {
@@ -60,7 +58,6 @@ export class PostsService {
   async findOne(id: number): Promise<PostEntity> {
     const post = await this.postsRepository.findOne({
       where: { id },
-      relations: ['author', 'categories', 'openGraphMetadata'],
     });
 
     if (!post) {
@@ -74,7 +71,7 @@ export class PostsService {
     const { id, categoryIds, ...updateData } = updatePostInput;
     const post = await this.findOne(id);
 
-    if (user.role !== UserRole.ADMIN && post.author.id !== user.id) {
+    if (user.role !== UserRole.ADMIN && post.authorId !== user.id) {
       throw new ForbiddenException('You can only update your own posts');
     }
 
@@ -92,11 +89,19 @@ export class PostsService {
   async remove(id: number, user: UserEntity): Promise<PostEntity> {
     const post = await this.findOne(id);
 
-    if (user.role !== UserRole.ADMIN && post.author.id !== user.id) {
+    if (user.role !== UserRole.ADMIN && post.authorId !== user.id) {
       throw new ForbiddenException('You can only delete your own posts');
     }
 
     await this.postsRepository.remove(post);
     return post;
+  }
+
+  async getPostCategories(postId: number): Promise<CategoryEntity[]> {
+    const post = await this.postsRepository.findOne({
+      where: { id: postId },
+      relations: ['categories'],
+    });
+    return post?.categories ?? [];
   }
 }
