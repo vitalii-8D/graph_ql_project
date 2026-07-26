@@ -2,14 +2,10 @@ import { type MigrationInterface, type QueryRunner } from 'typeorm';
 
 export class AddRoleToUsers1767430335593 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-            ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'admin'))
-        `);
+    await queryRunner.query(`ALTER TABLE "users" ADD "role" text NOT NULL DEFAULT 'user'`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-            ALTER TABLE users DROP COLUMN role
-        `);
+    await queryRunner.query(`ALTER TABLE "users" DROP COLUMN "role"`);
   }
 }

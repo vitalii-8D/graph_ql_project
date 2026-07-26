@@ -67,11 +67,11 @@ export class OpenGraphMetadataEntity {
   publisher?: string;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true, name: 'published_time' })
+  @Column({ type: 'timestamp', nullable: true, name: 'published_time' })
   publishedTime?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true, name: 'modified_time' })
+  @Column({ type: 'timestamp', nullable: true, name: 'modified_time' })
   modifiedTime?: Date;
 
   @Field(() => [String], { nullable: true })
@@ -114,11 +114,11 @@ export class OpenGraphMetadataEntity {
 
   // Event specific
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true, name: 'event_start_time' })
+  @Column({ type: 'timestamp', nullable: true, name: 'event_start_time' })
   eventStartTime?: Date;
 
   @Field({ nullable: true })
-  @Column({ type: 'datetime', nullable: true, name: 'event_end_time' })
+  @Column({ type: 'timestamp', nullable: true, name: 'event_end_time' })
   eventEndTime?: Date;
 
   // Location specific

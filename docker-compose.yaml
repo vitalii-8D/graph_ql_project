@@ -1,0 +1,34 @@
+name: pdp
+
+services:
+  # ---------------------
+  # PostgreSQL Database
+  # ---------------------
+  postgres:
+    container_name: pdp_postgres
+    image: postgres:18
+    #    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pdp_local
+    ports:
+      - "5432:5432"
+    volumes:
+      - pdp_db_data:/var/lib/postgresql
+    networks:
+      - pdp_network
+
+# ---------------------
+# Networks
+# ---------------------
+networks:
+  pdp_network:
+    driver: bridge
+
+# ---------------------
+# Volumes
+# ---------------------
+volumes:
+  pdp_db_data:
+#  pdp_minio_data:

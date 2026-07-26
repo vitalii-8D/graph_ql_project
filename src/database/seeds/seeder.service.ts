@@ -1,15 +1,23 @@
+import { faker } from '@faker-js/faker';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { UserEntity } from '../../users/entities/user.entity';
 import { PostEntity } from '../../posts/entities/post.entity';
 import { CategoryEntity } from '../../categories/entities/category.entity';
-import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
-import { OgType } from '../../open-graph/entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity, OgType } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PasswordUtil } from '../../utils/password.util';
+import { formatSlug } from '../../utils/format-slug';
 
 const MOCK_PASSWORD = 'Password!1';
+
+const CATEGORY_SEEDS = [
+  { name: 'Technology', description: 'Tech-related posts' },
+  { name: 'Lifestyle', description: 'Lifestyle and wellness posts' },
+  { name: 'Travel', description: 'Travel experiences and tips' },
+  { name: 'News', description: "World's news" },
+];
 
 @Injectable()
 export class SeederService {
@@ -25,298 +33,173 @@ export class SeederService {
     private readonly passwordUtil: PasswordUtil,
   ) {}
 
-  async seed() {
-    console.log('Starting database seeding...');
-
-    // await this.clearExistingData();
+  async seed(usersCount: number, postsCount: number): Promise<void> {
+    console.log(`Starting database seeding with ${usersCount} user(s) and ${postsCount} post(s)...`);
 
     const categories = await this.createCategories();
-    await this.createUser1WithPosts(categories);
-    await this.createUser2WithPosts(categories);
-    await this.createUser3WithPosts(categories);
 
-    console.log('Database seeding completed successfully!');
-    console.log('Summary:');
-    console.log('- 3 Users created');
-    console.log('- 3 Categories created');
-    console.log('- 6 Posts created (with many-to-many relationships to categories)');
-    console.log('- 6 OpenGraph metadata records created (with rich social sharing data)');
+    const users = await this.createUsers(usersCount);
+
+    const posts = await this.createPosts(postsCount, users, categories);
+
+    this.logBreakdown(users, posts);
+
+    console.log('\nDatabase seeding completed successfully!');
   }
 
-  // private async clearExistingData() {
-  //   await this.openGraphRepository.clear();
-  //   await this.postRepository.clear();
-  //   await this.categoryRepository.clear();
-  //   await this.userRepository.clear();
-  //   console.log('Cleared existing data');
-  // }
-
   private async createCategories(): Promise<CategoryEntity[]> {
-    const techCategory = this.categoryRepository.create({
-      name: 'Technology',
-      description: 'Tech-related posts',
-    });
+    console.log('Creating categories...');
 
-    const lifestyleCategory = this.categoryRepository.create({
-      name: 'Lifestyle',
-      description: 'Lifestyle and wellness posts',
-    });
+    const categoryNames = CATEGORY_SEEDS.map((category) => category.name);
+    const existingCategories = await this.categoryRepository.find({ where: { name: In(categoryNames) } });
+    const existingNames = new Set(existingCategories.map((category) => category.name));
 
-    const travelCategory = this.categoryRepository.create({
-      name: 'Travel',
-      description: 'Travel experiences and tips',
-    });
+    const missingCategories = CATEGORY_SEEDS.filter((category) => !existingNames.has(category.name));
 
-    const categories = await this.categoryRepository.save([techCategory, lifestyleCategory, travelCategory]);
-    console.log('Created categories');
+    if (missingCategories.length > 0) {
+      await this.categoryRepository.save(missingCategories.map((category) => this.categoryRepository.create(category)));
+    }
+
+    const categories = await this.categoryRepository.find({ where: { name: In(categoryNames) } });
+
+    console.log(`Created ${missingCategories.length} new categories (${categories.length} total)`);
+
     return categories;
   }
 
-  private async createUser1WithPosts(categories: CategoryEntity[]) {
-    const user1 = this.userRepository.create({
-      email: 'john.doe@example.com',
-      name: 'John Doe',
-      age: 28,
-      password: await this.passwordUtil.hash(MOCK_PASSWORD),
-    });
+  private async createUsers(count: number): Promise<UserEntity[]> {
+    console.log('Creating users...');
 
-    const savedUser1 = await this.userRepository.save(user1);
+    const passwordHash = await this.passwordUtil.hash(MOCK_PASSWORD);
+    const users = Array.from({ length: count }, () => this.buildFakeUser(passwordHash));
+    const savedUsers = await this.userRepository.save(this.userRepository.create(users));
 
-    const post1 = this.postRepository.create({
-      title: 'Getting Started with GraphQL',
-      content:
-        'GraphQL is a query language for APIs that provides a complete and understandable description of the data in your API. In this post, we will explore the basics of GraphQL and how to integrate it with NestJS.',
-      published: true,
-      author: savedUser1,
-      categories: [categories[0]],
-    });
+    console.log(`Created ${savedUsers.length} users`);
 
-    const savedPost1 = await this.postRepository.save(post1);
-
-    const og1 = this.openGraphRepository.create({
-      title: 'Getting Started with GraphQL',
-      description: 'Learn the basics of GraphQL and how to integrate it with NestJS framework.',
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'GraphQL code on laptop screen',
-      imageWidth: 320,
-      imageHeight: 320,
-      author: 'John Doe',
-      publisher: 'Tech Blog',
-      publishedTime: new Date('2024-01-15'),
-      tags: ['GraphQL', 'NestJS', 'API', 'TypeScript'],
-      locale: 'en_US',
-      siteName: 'Tech Blog',
-      twitterCard: 'summary_large_image',
-      twitterSite: '@techblog',
-      twitterCreator: '@johndoe',
-      post: savedPost1,
-    });
-
-    await this.openGraphRepository.save(og1);
-
-    const post2 = this.postRepository.create({
-      title: 'TypeORM Best Practices',
-      content:
-        'TypeORM is an ORM that can run in NodeJS and can be used with TypeScript. Here are some best practices when working with TypeORM in production applications.',
-      published: true,
-      author: savedUser1,
-      categories: [categories[0]],
-    });
-
-    const savedPost2 = await this.postRepository.save(post2);
-
-    const og2 = this.openGraphRepository.create({
-      title: 'TypeORM Best Practices for Production',
-      description: 'Essential best practices for using TypeORM in production Node.js applications.',
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'Database schema diagram',
-      imageWidth: 320,
-      imageHeight: 320,
-      author: 'John Doe',
-      publisher: 'Tech Blog',
-      publishedTime: new Date('2024-02-01'),
-      tags: ['TypeORM', 'Database', 'NodeJS', 'Best Practices'],
-      locale: 'en_US',
-      siteName: 'Tech Blog',
-      twitterCard: 'summary_large_image',
-      twitterSite: '@techblog',
-      twitterCreator: '@johndoe',
-      post: savedPost2,
-    });
-
-    await this.openGraphRepository.save(og2);
-
-    console.log('Created User 1 with posts with OpenGraph metadata');
+    return savedUsers;
   }
 
-  private async createUser2WithPosts(categories: CategoryEntity[]) {
-    const user2 = this.userRepository.create({
-      email: 'jane.smith@example.com',
-      name: 'Jane Smith',
-      age: 32,
-      password: await this.passwordUtil.hash(MOCK_PASSWORD),
-    });
-
-    const savedUser2 = await this.userRepository.save(user2);
-
-    const post3 = this.postRepository.create({
-      title: 'Working Remotely from Barcelona',
-      content:
-        'Barcelona has become one of the top destinations for digital nomads. Here is my experience working remotely from this beautiful city for the past year.',
-      published: true,
-      author: savedUser2,
-      categories: [categories[1], categories[2]],
-    });
-
-    const savedPost3 = await this.postRepository.save(post3);
-
-    const og3 = this.openGraphRepository.create({
-      title: "Working Remotely from Barcelona: A Digital Nomad's Guide",
-      description:
-        "Discover what it's like to work remotely from Barcelona, one of Europe's top digital nomad destinations.",
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'Barcelona cityscape',
-      imageWidth: 320,
-      imageHeight: 320,
-      author: 'Jane Smith',
-      publisher: 'Travel Blog',
-      publishedTime: new Date('2024-03-10'),
-      tags: ['Remote Work', 'Barcelona', 'Digital Nomad', 'Travel'],
-      locationAddress: 'Barcelona, Catalonia, Spain',
-      locationLatitude: 41.3874,
-      locationLongitude: 2.1686,
-      locale: 'en_US',
-      siteName: 'Travel Blog',
-      twitterCard: 'summary_large_image',
-      twitterSite: '@travelblog',
-      twitterCreator: '@janesmith',
-      post: savedPost3,
-    });
-
-    await this.openGraphRepository.save(og3);
-
-    const post4 = this.postRepository.create({
-      title: 'Best Coffee Shops for Remote Work',
-      content:
-        'Finding the perfect coffee shop to work from can be challenging. Here is my curated list of the best coffee shops in Barcelona for remote workers.',
-      published: true,
-      author: savedUser2,
-      categories: [categories[1], categories[2]],
-    });
-
-    const savedPost4 = await this.postRepository.save(post4);
-
-    const og4 = this.openGraphRepository.create({
-      title: 'Best Coffee Shops for Remote Work in Barcelona',
-      description:
-        'A curated guide to the best coffee shops in Barcelona perfect for remote workers and digital nomads.',
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'Cozy coffee shop interior',
-      imageWidth: 320,
-      imageHeight: 320,
-      author: 'Jane Smith',
-      publisher: 'Travel Blog',
-      publishedTime: new Date('2024-03-20'),
-      tags: ['Coffee Shops', 'Remote Work', 'Barcelona', 'Guide'],
-      locationAddress: 'Barcelona, Spain',
-      locale: 'en_US',
-      siteName: 'Travel Blog',
-      twitterCard: 'summary_large_image',
-      twitterSite: '@travelblog',
-      twitterCreator: '@janesmith',
-      post: savedPost4,
-    });
-
-    await this.openGraphRepository.save(og4);
-
-    console.log('Created User 2 with posts with OpenGraph metadata');
+  private buildFakeUser(passwordHash: string): Partial<UserEntity> {
+    return {
+      email: faker.internet.email().toLowerCase(),
+      name: faker.person.fullName(),
+      age: faker.number.int({ min: 18, max: 70 }),
+      password: passwordHash,
+    };
   }
 
-  private async createUser3WithPosts(categories: CategoryEntity[]) {
-    const user3 = this.userRepository.create({
-      email: 'bob.wilson@example.com',
-      name: 'Bob Wilson',
-      age: 35,
-      password: await this.passwordUtil.hash(MOCK_PASSWORD),
-    });
+  private async createPosts(count: number, users: UserEntity[], categories: CategoryEntity[]): Promise<PostEntity[]> {
+    console.log('Creating posts...');
 
-    const savedUser3 = await this.userRepository.save(user3);
+    const posts: PostEntity[] = [];
 
-    const post5 = this.postRepository.create({
-      title: 'Microservices Architecture Patterns',
-      content:
-        'Microservices architecture is a way of building applications as a collection of small, independent services. Let us explore common patterns and best practices.',
-      published: true,
-      author: savedUser3,
-      categories: [categories[0]],
-    });
+    for (let index = 0; index < count; index++) {
+      const author = faker.helpers.arrayElement(users);
+      const post = await this.createPostWithMetadata(author, categories, index);
+      posts.push(post);
+    }
 
-    const savedPost5 = await this.postRepository.save(post5);
+    console.log(`Created ${posts.length} posts (with OpenGraph metadata)`);
 
-    const og5 = this.openGraphRepository.create({
-      title: 'Microservices Architecture Patterns Explained',
-      description:
-        'Comprehensive guide to microservices architecture patterns with real-world examples and best practices.',
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'Microservices architecture diagram',
+    return posts;
+  }
+
+  private async createPostWithMetadata(
+    author: UserEntity,
+    categories: CategoryEntity[],
+    index: number,
+  ): Promise<PostEntity> {
+    const post = this.postRepository.create(this.buildFakePost(author, categories, index));
+    const savedPost = await this.postRepository.save(post);
+
+    const metadata = this.openGraphRepository.create(this.buildFakeOpenGraphMetadata(savedPost));
+    await this.openGraphRepository.save(metadata);
+
+    return savedPost;
+  }
+
+  private buildFakePost(author: UserEntity, categories: CategoryEntity[], index: number): Partial<PostEntity> {
+    const title = faker.lorem.sentence({ min: 3, max: 8 }).replace(/\.$/, '');
+
+    return {
+      title,
+      content: faker.lorem.paragraphs({ min: 2, max: 5 }, '\n\n'),
+      slug: `${formatSlug(title)}-${index}`,
+      published: faker.datatype.boolean(),
+      author,
+      categories: faker.helpers.arrayElements(categories, { min: 1, max: categories.length }),
+    };
+  }
+
+  private buildFakeOpenGraphMetadata(post: PostEntity): Partial<OpenGraphMetadataEntity> {
+    const type = faker.helpers.arrayElement(Object.values(OgType));
+
+    return {
+      title: post.title,
+      description: faker.lorem.sentence(),
+      type,
+      image: faker.image.urlPicsumPhotos({ width: 320, height: 320 }),
+      imageAlt: faker.lorem.words({ min: 2, max: 4 }),
       imageWidth: 320,
       imageHeight: 320,
-      author: 'Bob Wilson',
-      publisher: 'Tech Blog',
-      publishedTime: new Date('2024-04-01'),
-      modifiedTime: new Date('2024-04-05'),
-      tags: ['Microservices', 'Architecture', 'Software Design', 'Best Practices'],
-      videoUrl: 'https://example.com/videos/microservices-intro.mp4',
-      videoDuration: 320,
-      videoWidth: 1920,
-      videoHeight: 1080,
+      author: post.author.name,
+      publisher: faker.company.name(),
+      publishedTime: faker.date.past(),
+      tags: faker.helpers.arrayElements(
+        ['GraphQL', 'NestJS', 'API', 'TypeScript', 'Travel', 'Lifestyle', 'Tech', 'Guide'],
+        { min: 2, max: 5 },
+      ),
       locale: 'en_US',
-      siteName: 'Tech Blog',
-      twitterCard: 'player',
-      twitterSite: '@techblog',
-      twitterCreator: '@bobwilson',
-      post: savedPost5,
-    });
+      siteName: faker.company.name(),
+      twitterCard: faker.helpers.arrayElement(['summary', 'summary_large_image', 'player']),
+      twitterSite: `@${faker.internet.username()}`,
+      twitterCreator: `@${faker.internet.username()}`,
+      post,
+      ...this.buildTypeSpecificMetadata(type),
+    };
+  }
 
-    await this.openGraphRepository.save(og5);
+  private buildTypeSpecificMetadata(type: OgType): Partial<OpenGraphMetadataEntity> {
+    switch (type) {
+      case OgType.VIDEO:
+        return {
+          videoUrl: faker.internet.url(),
+          videoDuration: faker.number.int({ min: 60, max: 900 }),
+          videoWidth: 1920,
+          videoHeight: 1080,
+        };
+      case OgType.MUSIC:
+        return {
+          audioUrl: faker.internet.url(),
+        };
+      case OgType.PRODUCT:
+        return {
+          price: Number(faker.commerce.price({ min: 5, max: 500 })),
+          currency: faker.finance.currencyCode(),
+          availability: faker.helpers.arrayElement(['in stock', 'out of stock', 'preorder']),
+        };
+      case OgType.EVENT: {
+        const eventStartTime = faker.date.future();
+        return {
+          eventStartTime,
+          eventEndTime: faker.date.soon({ days: 1, refDate: eventStartTime }),
+        };
+      }
+      default:
+        return {};
+    }
+  }
 
-    const post6 = this.postRepository.create({
-      title: 'Draft: Upcoming Tech Trends',
-      content: 'This is a draft post about upcoming technology trends that I am still working on.',
-      published: false,
-      author: savedUser3,
-      categories: [categories[0]],
-    });
+  private logBreakdown(users: UserEntity[], posts: PostEntity[]): void {
+    console.log('\n--- Seeding Breakdown ---');
 
-    const savedPost6 = await this.postRepository.save(post6);
+    for (const user of users) {
+      const userPosts = posts.filter((post) => post.author.id === user.id);
+      const postTitles = userPosts.length > 0 ? userPosts.map((post) => `"${post.title}"`).join(', ') : '(no posts)';
 
-    const og6 = this.openGraphRepository.create({
-      title: 'Upcoming Tech Trends 2024',
-      description:
-        'An in-depth analysis of upcoming technology trends that will shape the future of software development.',
-      type: OgType.ARTICLE,
-      image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
-      imageAlt: 'Futuristic technology concept',
-      imageWidth: 320,
-      imageHeight: 320,
-      author: 'Bob Wilson',
-      publisher: 'Tech Blog',
-      tags: ['Tech Trends', '2024', 'Future', 'Innovation'],
-      locale: 'en_US',
-      siteName: 'Tech Blog',
-      twitterCard: 'summary_large_image',
-      twitterSite: '@techblog',
-      twitterCreator: '@bobwilson',
-      post: savedPost6,
-    });
+      console.log(`User #${user.id} (${user.name}) owns ${userPosts.length} post(s): ${postTitles}`);
+    }
 
-    await this.openGraphRepository.save(og6);
-
-    console.log('Created User 3 with posts with OpenGraph metadata');
+    console.log('-------------------------');
   }
 }
