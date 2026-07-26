@@ -8,6 +8,8 @@ const SocialBaseUrl: Record<keyof typeof SocialPlatform, string> = {
   Facebook: 'https://www.facebook.com/sharer/sharer.php',
   Twitter: 'https://twitter.com/intent/tweet',
   LinkedIn: 'https://www.linkedin.com/sharing/share-offsite/',
+  Whatsapp: 'https://api.whatsapp.com/send',
+  Telegram: 'https://t.me/share/url',
 };
 
 @Injectable()
@@ -23,6 +25,8 @@ export class SocialSharingService {
       facebook: this.generateFacebookShareLink(url),
       twitter: this.generateTwitterShareLink(url, metadata),
       linkedin: this.generateLinkedInShareLink(url),
+      whatsapp: this.generateWhatsappShareLink(url, metadata),
+      telegram: this.generateTelegramShareLink(url, metadata),
     };
   }
 
@@ -78,12 +82,41 @@ export class SocialSharingService {
   }
 
   /**
+   * Generate WhatsApp share link
+   * Documentation: https://faq.whatsapp.com/425247423114725
+   * @param url - The URL to share
+   * @param metadata - Optional metadata to prefix the shared message with a title
+   * @returns WhatsApp share URL
+   */
+  generateWhatsappShareLink(url: string, metadata?: OpenGraphMetadataEntity): string {
+    const text = metadata?.title ? `${metadata.title} ${url}` : url;
+    const params = new URLSearchParams({ text });
+    return `${SocialBaseUrl.Whatsapp}?${params.toString()}`;
+  }
+
+  /**
+   * Generate Telegram share link
+   * Documentation: https://core.telegram.org/widgets/share
+   * @param url - The URL to share
+   * @param metadata - Optional metadata to include as the message text
+   * @returns Telegram share URL
+   */
+  generateTelegramShareLink(url: string, metadata?: OpenGraphMetadataEntity): string {
+    const params = new URLSearchParams({ url });
+    if (metadata?.title) {
+      params.append('text', metadata.title);
+    }
+    return `${SocialBaseUrl.Telegram}?${params.toString()}`;
+  }
+
+  /**
    * Generate Open Graph meta tags HTML
    * @param metadata - OpenGraph metadata
-   * @param _baseUrl - Base URL of the application
+   * @param baseUrl - Base URL of the application; the post's own url is no longer
+   *   stored on the metadata, so it's derived from baseUrl + the related post's slug
    * @returns HTML string with meta tags
    */
-  generateOpenGraphTags(metadata: OpenGraphMetadataEntity, _baseUrl: string): string {
+  generateOpenGraphTags(metadata: OpenGraphMetadataEntity, baseUrl: string): string {
     const tags: string[] = [];
 
     // Basic Open Graph tags
@@ -91,8 +124,9 @@ export class SocialSharingService {
     tags.push(`<meta property="og:description" content="${this.escapeHtml(metadata.description)}" />`);
     tags.push(`<meta property="og:type" content="${metadata.type}" />`);
 
-    if (metadata.url) {
-      tags.push(`<meta property="og:url" content="${metadata.url}" />`);
+    if (metadata.post) {
+      const url = `${baseUrl}/posts/${metadata.post.id}/${metadata.post.slug}`;
+      tags.push(`<meta property="og:url" content="${url}" />`);
     }
 
     if (metadata.image) {

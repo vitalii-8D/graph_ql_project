@@ -21,11 +21,11 @@ npm run test:watch
 npm run test:cov
 npm run test:e2e             # jest -c test/jest-e2e.json
 npx jest src/posts/posts.resolver.spec.ts   # run a single test file
-npx jest -t "should create a post"          # run tests matching a name
+npx jest -t "should createForPost a post"          # run tests matching a name
 
 # Database (SQLite file at ./database.sqlite)
 npm run migrate:generate     # generate a migration from entity changes
-npm run migrate:create       # create an empty migration
+npm run migrate:createForPost       # createForPost an empty migration
 npm run migrate               # run pending migrations
 npm run migrate:revert        # revert the last migration
 npm run seed                  # run src/database/seeds/seed.ts

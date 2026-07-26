@@ -43,10 +43,6 @@ export class OpenGraphMetadataEntity {
 
   @Field({ nullable: true })
   @Column({ nullable: true })
-  url?: string;
-
-  @Field({ nullable: true })
-  @Column({ nullable: true })
   image?: string;
 
   @Field({ nullable: true })

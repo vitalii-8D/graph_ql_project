@@ -32,6 +32,10 @@ export class PostEntity {
   content: string;
 
   @Field()
+  @Column()
+  slug: string;
+
+  @Field()
   @Column({ default: false })
   published: boolean;
 

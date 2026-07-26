@@ -10,4 +10,10 @@ export class ShareLinks {
 
   @Field()
   linkedin: string;
+
+  @Field()
+  whatsapp: string;
+
+  @Field()
+  telegram: string;
 }

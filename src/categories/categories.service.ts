@@ -17,12 +17,11 @@ export class CategoriesService {
   }
 
   async findByPostId(postId: number): Promise<CategoryEntity[]> {
-    const categories = await this.categoriesRepository
-      .createQueryBuilder('category')
-      .leftJoin('category.posts', 'post')
-      .where('post.id = :postId', { postId })
-      .getMany();
-    return categories;
+    return await this.categoriesRepository.find({
+      where: {
+        posts: { id: postId },
+      },
+    });
   }
 
   async getCategoryPosts(categoryId: number): Promise<PostEntity[]> {
@@ -30,6 +29,7 @@ export class CategoriesService {
       where: { id: categoryId },
       relations: ['posts'],
     });
-    return category?.posts || [];
+
+    return category?.posts ?? [];
   }
 }

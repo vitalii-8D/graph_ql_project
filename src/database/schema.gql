@@ -60,7 +60,6 @@ input CreateOpenGraphInput {
   twitterCreator: String
   twitterSite: String
   type: OgType! = ARTICLE
-  url: String
   videoDuration: Int
   videoHeight: Int
   videoUrl: String
@@ -70,7 +69,9 @@ input CreateOpenGraphInput {
 input CreatePostInput {
   categoryIds: [ID!]
   content: String!
+  metadata: PostMetadataInput
   published: Boolean! = false
+  slug: String!
   title: String!
 }
 
@@ -152,7 +153,6 @@ type OpenGraphMetadataEntity {
   twitterCreator: String
   twitterSite: String
   type: OgType!
-  url: String
   videoDuration: Float
   videoHeight: Float
   videoUrl: String
@@ -168,8 +168,15 @@ type PostEntity {
   id: ID!
   openGraphMetadata: OpenGraphMetadataEntity
   published: Boolean!
+  slug: String!
   title: String!
   updatedAt: DateTime!
+}
+
+input PostMetadataInput {
+  image: String
+  imageAlt: String
+  tags: [String!]
 }
 
 type Query {
@@ -192,7 +199,9 @@ type Query {
 type ShareLinks {
   facebook: String!
   linkedin: String!
+  telegram: String!
   twitter: String!
+  whatsapp: String!
 }
 
 input UpdateOpenGraphInput {
@@ -223,7 +232,6 @@ input UpdateOpenGraphInput {
   twitterCreator: String
   twitterSite: String
   type: OgType = ARTICLE
-  url: String
   videoDuration: Int
   videoHeight: Int
   videoUrl: String
@@ -234,7 +242,9 @@ input UpdatePostInput {
   categoryIds: [ID!]
   content: String
   id: ID!
+  metadata: PostMetadataInput
   published: Boolean = false
+  slug: String
   title: String
 }
 

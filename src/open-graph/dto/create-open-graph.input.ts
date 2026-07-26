@@ -20,11 +20,6 @@ export class CreateOpenGraphInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsUrl()
-  url?: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsUrl()
   image?: string;
 
   @Field({ nullable: true })

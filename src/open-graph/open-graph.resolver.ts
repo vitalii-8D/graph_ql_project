@@ -1,4 +1,5 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+
 import { OpenGraphService } from './services/open-graph.service';
 import { SocialSharingService } from './services/social-sharing.service';
 import { OpenGraphMetadataEntity } from './entities/open-graph-metadata.entity';
@@ -18,7 +19,7 @@ export class OpenGraphResolver {
     @Args('postId', { type: () => ID }) postId: number,
     @Args('createOpenGraphInput') createOpenGraphInput: CreateOpenGraphInput,
   ): Promise<OpenGraphMetadataEntity> {
-    return this.openGraphService.create(postId, createOpenGraphInput);
+    return this.openGraphService.createForPost(postId, createOpenGraphInput);
   }
 
   @Query(() => [OpenGraphMetadataEntity], { name: 'openGraphMetadataList' })

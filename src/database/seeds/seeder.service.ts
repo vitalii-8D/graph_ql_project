@@ -97,7 +97,6 @@ export class SeederService {
       title: 'Getting Started with GraphQL',
       description: 'Learn the basics of GraphQL and how to integrate it with NestJS framework.',
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/getting-started-with-graphql',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'GraphQL code on laptop screen',
       imageWidth: 320,
@@ -131,7 +130,6 @@ export class SeederService {
       title: 'TypeORM Best Practices for Production',
       description: 'Essential best practices for using TypeORM in production Node.js applications.',
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/typeorm-best-practices',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'Database schema diagram',
       imageWidth: 320,
@@ -179,7 +177,6 @@ export class SeederService {
       description:
         "Discover what it's like to work remotely from Barcelona, one of Europe's top digital nomad destinations.",
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/working-remotely-barcelona',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'Barcelona cityscape',
       imageWidth: 320,
@@ -217,7 +214,6 @@ export class SeederService {
       description:
         'A curated guide to the best coffee shops in Barcelona perfect for remote workers and digital nomads.',
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/best-coffee-shops-remote-work',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'Cozy coffee shop interior',
       imageWidth: 320,
@@ -266,7 +262,6 @@ export class SeederService {
       description:
         'Comprehensive guide to microservices architecture patterns with real-world examples and best practices.',
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/microservices-architecture-patterns',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'Microservices architecture diagram',
       imageWidth: 320,
@@ -305,7 +300,6 @@ export class SeederService {
       description:
         'An in-depth analysis of upcoming technology trends that will shape the future of software development.',
       type: OgType.ARTICLE,
-      url: 'https://example.com/posts/upcoming-tech-trends-2024',
       image: 'https://cataas.com/cat?type=square&position=center&width=320&height=320',
       imageAlt: 'Futuristic technology concept',
       imageWidth: 320,

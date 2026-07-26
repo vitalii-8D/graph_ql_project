@@ -22,7 +22,7 @@ A comprehensive GraphQL API built with NestJS, TypeORM, and SQLite featuring mul
 src/
 ├── users/
 │   ├── entities/user.entity.ts
-│   ├── dto/create-user.input.ts
+│   ├── dto/createForPost-user.input.ts
 │   ├── dto/update-user.input.ts
 │   ├── users.service.ts
 │   ├── users.resolver.ts
@@ -30,7 +30,7 @@ src/
 │   └── users.module.ts
 ├── posts/
 │   ├── entities/post.entity.ts
-│   ├── dto/create-post.input.ts
+│   ├── dto/createForPost-post.input.ts
 │   ├── dto/update-post.input.ts
 │   ├── posts.service.ts
 │   ├── posts.resolver.ts
@@ -41,7 +41,7 @@ src/
 │   └── categories.module.ts
 ├── open-graph/
 │   ├── entities/open-graph-metadata.entity.ts
-│   ├── dto/create-open-graph.input.ts
+│   ├── dto/createForPost-open-graph.input.ts
 │   ├── dto/update-open-graph.input.ts
 │   ├── services/
 │   │   ├── open-graph.service.ts

@@ -12,6 +12,7 @@ import { UsersService } from '../users/users.service';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
+import type { AuthenticatedUser } from '../auth/types';
 
 @Resolver(() => PostEntity)
 export class PostsResolver {
@@ -25,18 +26,16 @@ export class PostsResolver {
   @Mutation(() => PostEntity)
   createPost(
     @Args('createPostInput') createPostInput: CreatePostInput,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PostEntity> {
-    return this.postsService.create(createPostInput, user.id);
+    return this.postsService.create(createPostInput, user);
   }
 
-  @UseGuards(GqlAuthGuard)
   @Query(() => [PostEntity], { name: 'posts' })
   findAll(): Promise<PostEntity[]> {
     return this.postsService.findAll();
   }
 
-  @UseGuards(GqlAuthGuard)
   @Query(() => PostEntity, { name: 'post' })
   findOne(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
     return this.postsService.findOne(id);
@@ -46,30 +45,27 @@ export class PostsResolver {
   @Mutation(() => PostEntity)
   updatePost(
     @Args('updatePostInput') updatePostInput: UpdatePostInput,
-    @CurrentUser() user: UserEntity,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PostEntity> {
     return this.postsService.update(updatePostInput, user);
   }
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => PostEntity)
-  removePost(@Args('id', { type: () => ID }) id: number, @CurrentUser() user: UserEntity): Promise<PostEntity> {
+  removePost(@Args('id', { type: () => ID }) id: number, @CurrentUser() user: AuthenticatedUser): Promise<PostEntity> {
     return this.postsService.remove(id, user);
   }
 
-  @UseGuards(GqlAuthGuard)
   @ResolveField('author', () => UserEntity)
   async getAuthor(@Parent() post: PostEntity): Promise<UserEntity | null> {
     return this.usersService.findByIdPlain(post.authorId);
   }
 
-  @UseGuards(GqlAuthGuard)
   @ResolveField('categories', () => [CategoryEntity])
   async getCategories(@Parent() post: PostEntity): Promise<CategoryEntity[]> {
     return this.postsService.getPostCategories(post.id);
   }
 
-  @UseGuards(GqlAuthGuard)
   @ResolveField('openGraphMetadata', () => OpenGraphMetadataEntity, { nullable: true })
   async getOpenGraphMetadata(@Parent() post: PostEntity): Promise<OpenGraphMetadataEntity | null> {
     return this.openGraphService.findByPostId(post.id);

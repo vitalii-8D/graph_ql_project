@@ -15,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
+import { GraphqlLoggingPlugin } from './helpers/graphql-logging.plugin';
 
 const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
 
@@ -38,5 +39,6 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
     ChatModule,
   ],
   controllers: [AppController],
+  providers: [GraphqlLoggingPlugin],
 })
 export class AppModule {}

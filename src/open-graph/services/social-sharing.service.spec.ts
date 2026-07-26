@@ -94,6 +94,44 @@ describe('SocialSharingService', () => {
     });
   });
 
+  describe('generateWhatsappShareLink', () => {
+    it('should generate a valid WhatsApp share link', () => {
+      const url = 'https://example.com/post/123';
+      const result = service.generateWhatsappShareLink(url);
+
+      expect(result).toBe(`https://api.whatsapp.com/send?text=${encodeURIComponent(url)}`);
+      expect(result).toContain('api.whatsapp.com/send');
+    });
+
+    it('should prefix the text with the title when metadata is provided', () => {
+      const url = 'https://example.com/post/123';
+      const metadata = { title: 'My Awesome Post' } as OpenGraphMetadataEntity;
+
+      const result = service.generateWhatsappShareLink(url, metadata);
+
+      expect(result).toContain(encodeURIComponent(`My Awesome Post ${url}`).replace(/%20/g, '+'));
+    });
+  });
+
+  describe('generateTelegramShareLink', () => {
+    it('should generate a valid Telegram share link', () => {
+      const url = 'https://example.com/post/123';
+      const result = service.generateTelegramShareLink(url);
+
+      expect(result).toBe(`https://t.me/share/url?url=${encodeURIComponent(url)}`);
+      expect(result).toContain('t.me/share/url');
+    });
+
+    it('should include text parameter when title is provided', () => {
+      const url = 'https://example.com/post/123';
+      const metadata = { title: 'My Awesome Post' } as OpenGraphMetadataEntity;
+
+      const result = service.generateTelegramShareLink(url, metadata);
+
+      expect(result).toContain('text=My+Awesome+Post');
+    });
+  });
+
   describe('generateShareLinks', () => {
     it('should generate all share links', () => {
       const url = 'https://example.com/post/123';
@@ -102,9 +140,13 @@ describe('SocialSharingService', () => {
       expect(result).toHaveProperty('facebook');
       expect(result).toHaveProperty('twitter');
       expect(result).toHaveProperty('linkedin');
+      expect(result).toHaveProperty('whatsapp');
+      expect(result).toHaveProperty('telegram');
       expect(result.facebook).toContain('facebook.com');
       expect(result.twitter).toContain('twitter.com');
       expect(result.linkedin).toContain('linkedin.com');
+      expect(result.whatsapp).toContain('api.whatsapp.com');
+      expect(result.telegram).toContain('t.me/share');
     });
 
     it('should include metadata in Twitter link when provided', () => {
@@ -127,7 +169,6 @@ describe('SocialSharingService', () => {
         title: 'Test Post',
         description: 'This is a test post',
         type: OgType.ARTICLE,
-        url: 'https://example.com/post/123',
         locale: 'en_US',
       } as OpenGraphMetadataEntity;
 

@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { PasswordUtil } from '../utils/password.util';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
-
 import { UserEntity } from './entities/user.entity';
 
 @Injectable()
@@ -19,6 +19,7 @@ export class UsersService {
     const hashedPassword = await this.passwordUtil.hash(createUserInput.password);
 
     const user = this.usersRepository.create({ ...createUserInput, password: hashedPassword });
+
     return await this.usersRepository.save(user);
   }
 

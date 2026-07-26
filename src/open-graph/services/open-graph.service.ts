@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { OpenGraphMetadataEntity } from '../entities/open-graph-metadata.entity';
+import { OpenGraphMetadataEntity, OgType } from '../entities/open-graph-metadata.entity';
 import { PostEntity } from '../../posts/entities/post.entity';
 import { CreateOpenGraphInput } from '../dto/create-open-graph.input';
 import { UpdateOpenGraphInput } from '../dto/update-open-graph.input';
@@ -16,7 +16,7 @@ export class OpenGraphService {
     private postRepository: Repository<PostEntity>,
   ) {}
 
-  async create(postId: number, createOpenGraphInput: CreateOpenGraphInput): Promise<OpenGraphMetadataEntity> {
+  async createForPost(postId: number, createOpenGraphInput: CreateOpenGraphInput): Promise<OpenGraphMetadataEntity> {
     const post = await this.postRepository.findOne({ where: { id: postId } });
 
     if (!post) {
@@ -68,5 +68,28 @@ export class OpenGraphService {
     await this.openGraphRepository.remove(openGraph);
 
     return openGraph;
+  }
+
+  async updateForPost(
+    postId: number,
+    metadata: Partial<Omit<CreateOpenGraphInput, 'type'>>,
+  ): Promise<OpenGraphMetadataEntity> {
+    return this.update({ ...metadata, type: OgType.ARTICLE, id: postId });
+  }
+
+  async upsertForPost(
+    postId: number,
+    metadata: Partial<Omit<CreateOpenGraphInput, 'type'>>,
+  ): Promise<OpenGraphMetadataEntity> {
+    const existing = await this.findByPostId(postId);
+    if (existing) {
+      return this.update({ ...metadata, type: OgType.ARTICLE, id: existing.id });
+    }
+
+    const payload = {
+      ...metadata,
+      type: OgType.ARTICLE,
+    };
+    return this.createForPost(postId, payload as CreateOpenGraphInput);
   }
 }
