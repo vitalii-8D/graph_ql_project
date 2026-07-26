@@ -4,6 +4,7 @@ import { Repository, In } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/types';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { SITE_NAME } from '../constants/common';
+import { OrderDirection } from '../enums/order-direction.enum';
 import { CreateOpenGraphInput } from '../open-graph/dto/create-open-graph.input';
 import { OgType } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
@@ -73,12 +74,13 @@ export class PostsService {
   }
 
   async findAll(): Promise<PostEntity[]> {
-    return await this.postsRepository.findBy({ published: true });
+    return await this.postsRepository.find({ where: { published: true }, order: { createdAt: OrderDirection.DESC } });
   }
 
   async findByAuthorId(authorId: number): Promise<PostEntity[]> {
     return await this.postsRepository.find({
       where: { authorId },
+      order: { createdAt: OrderDirection.DESC },
     });
   }
 
