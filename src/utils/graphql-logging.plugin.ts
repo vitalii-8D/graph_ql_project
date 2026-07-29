@@ -6,6 +6,8 @@ import type {
   GraphQLRequestContextWillSendResponse,
 } from '@apollo/server';
 
+import { createLogger } from './logger';
+
 const REDACTED_KEYS = new Set(['password', 'currentPassword', 'newPassword', 'token']);
 
 function redactVariables(variables: Record<string, unknown>): Record<string, unknown> {
@@ -24,39 +26,32 @@ function redactVariables(variables: Record<string, unknown>): Record<string, unk
 
 @Plugin()
 export class GraphqlLoggingPlugin implements ApolloServerPlugin {
+  private readonly logger = createLogger('Request');
+
   requestDidStart(): Promise<GraphQLRequestListener<object>> {
     const startedAt = Date.now();
 
+    const logger = this.logger;
+
     return Promise.resolve({
       didResolveOperation({ request, operation, operationName }: GraphQLRequestContextDidResolveOperation<object>) {
-        console.log(
-          JSON.stringify(
-            {
-              timestamp: new Date().toISOString(),
-              type: operation?.operation ?? 'unknown',
-              operationName: operationName ?? 'anonymous',
-              variables: request.variables ? redactVariables(request.variables) : undefined,
-            },
-            null,
-            2,
-          ),
-        );
+        logger.info({
+          type: operation?.operation ?? 'unknown',
+          operationName: operationName ?? 'anonymous',
+          variables: request.variables ? redactVariables(request.variables) : undefined,
+        });
+
         return Promise.resolve();
       },
 
       willSendResponse({ operationName, errors }: GraphQLRequestContextWillSendResponse<object>) {
-        console.log(
-          JSON.stringify(
-            {
-              timestamp: new Date().toISOString(),
-              operationName: operationName ?? 'anonymous',
-              responseTimeMs: Date.now() - startedAt,
-              ...(errors?.length ? { errors: errors.map((error) => error.message) } : {}),
-            },
-            null,
-            2,
-          ),
-        );
+        logger.info({
+          timestamp: new Date().toISOString(),
+          operationName: operationName ?? 'anonymous',
+          responseTimeMs: Date.now() - startedAt,
+          ...(errors?.length ? { errors: errors.map((error) => error.message) } : {}),
+        });
+
         return Promise.resolve();
       },
     });

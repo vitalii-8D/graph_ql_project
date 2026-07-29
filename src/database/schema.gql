@@ -3,7 +3,7 @@
 # ------------------------------------------------------
 
 type AuthResponse {
-  access_token: String!
+  accessToken: String!
   user: UserEntity!
 }
 
@@ -28,8 +28,10 @@ type ChatRoomEntity {
   createdAt: DateTime!
   description: String
   id: ID!
+  isDirect: Boolean!
   messages: [ChatMessageEntity!]!
   name: String!
+  participants: [UserEntity!]!
   updatedAt: DateTime!
 }
 
@@ -106,6 +108,7 @@ type Mutation {
   removeOpenGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   removePost(id: ID!): PostEntity!
   removeUser(id: ID!): UserEntity!
+  startDirectMessage(userId: ID!): ChatRoomEntity!
   updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadataEntity!
   updatePost(updatePostInput: UpdatePostInput!): PostEntity!
   updateUser(updateUserInput: UpdateUserInput!): UserEntity!
@@ -187,11 +190,13 @@ type Query {
   generateOpenGraphTags(baseUrl: String!, id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
   me: UserEntity!
+  myDirectMessageRooms: [ChatRoomEntity!]!
   openGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   openGraphMetadataByPost(postId: ID!): OpenGraphMetadataEntity
   openGraphMetadataList: [OpenGraphMetadataEntity!]!
   post(id: ID!): PostEntity!
   posts: [PostEntity!]!
+  searchUsers(query: String!): [UserEntity!]!
   user(id: ID!): UserEntity!
   users: [UserEntity!]!
 }

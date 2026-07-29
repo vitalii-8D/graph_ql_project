@@ -12,7 +12,7 @@ import { UsersService } from '../users/users.service';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
-import type { AuthenticatedUser } from '../auth/types';
+import type { AuthenticatedUser } from '../auth/types/common';
 
 @Resolver(() => PostEntity)
 export class PostsResolver {

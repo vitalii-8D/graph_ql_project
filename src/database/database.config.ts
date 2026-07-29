@@ -19,5 +19,5 @@ export const databaseConfig: DataSourceOptions = {
   database: process.env.DATABASE_NAME ?? 'pdp_local',
   entities: [CategoryEntity, UserEntity, PostEntity, OpenGraphMetadataEntity, ChatRoomEntity, ChatMessageEntity],
   synchronize: false,
-  logging: false,
+  logging: true,
 };

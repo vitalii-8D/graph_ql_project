@@ -1,5 +1,15 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { UserEntity } from '../../users/entities/user.entity';
 import { ChatMessageEntity } from './chat-message.entity';
 
 @ObjectType()
@@ -16,6 +26,19 @@ export class ChatRoomEntity {
   @Field({ nullable: true })
   @Column({ nullable: true })
   description?: string;
+
+  @Field()
+  @Column({ default: false })
+  isDirect: boolean;
+
+  @Field(() => [UserEntity])
+  @ManyToMany(() => UserEntity)
+  @JoinTable({
+    name: 'chat_room_participants',
+    joinColumn: { name: 'roomId' },
+    inverseJoinColumn: { name: 'userId' },
+  })
+  participants: UserEntity[];
 
   @Field(() => [ChatMessageEntity])
   @OneToMany(() => ChatMessageEntity, (message) => message.room)

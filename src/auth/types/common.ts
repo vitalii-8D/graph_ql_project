@@ -1,4 +1,4 @@
-import { type UserEntity } from '../users/entities/user.entity';
+import { type UserEntity } from '../../users/entities/user.entity';
 
 export interface JwtPayload {
   id: number;

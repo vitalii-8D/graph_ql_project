@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import type { AuthenticatedUser } from '../auth/types';
+import type { AuthenticatedUser } from '../auth/types/common';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { SITE_NAME } from '../constants/common';
 import { OrderDirection } from '../enums/order-direction.enum';

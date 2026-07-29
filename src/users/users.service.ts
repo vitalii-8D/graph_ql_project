@@ -49,6 +49,21 @@ export class UsersService {
     });
   }
 
+  async search(query: string, excludeUserId: number): Promise<UserEntity[]> {
+    const trimmed = query.trim();
+    if (trimmed.length < 3) {
+      return [];
+    }
+
+    return await this.usersRepository
+      .createQueryBuilder('user')
+      .where('user.name ILIKE :query OR user.email ILIKE :query', { query: `%${trimmed}%` })
+      .andWhere('user.id != :excludeUserId', { excludeUserId })
+      .orderBy('user.name', 'ASC')
+      .limit(10)
+      .getMany();
+  }
+
   async update(updateUserInput: UpdateUserInput): Promise<UserEntity> {
     const user = await this.findOne(updateUserInput.id);
 

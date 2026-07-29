@@ -8,6 +8,7 @@ import { ChatResolver } from './chat.resolver';
 import { ChatRoomEntity } from './entities/chat-room.entity';
 import { ChatMessageEntity } from './entities/chat-message.entity';
 import { UsersModule } from '../users/users.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UsersModule } from '../users/users.module';
       inject: [ConfigService],
     }),
     UsersModule,
+    AuthModule,
   ],
   providers: [ChatGateway, ChatService, ChatResolver],
   exports: [ChatService],

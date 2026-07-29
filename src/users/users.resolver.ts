@@ -42,6 +42,12 @@ export class UsersResolver {
   }
 
   @UseGuards(GqlAuthGuard)
+  @Query(() => [UserEntity], { name: 'searchUsers' })
+  searchUsers(@Args('query') query: string, @CurrentUser() user: UserEntity): Promise<UserEntity[]> {
+    return this.usersService.search(query, user.id);
+  }
+
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => UserEntity)
   updateUser(@Args('updateUserInput') updateUserInput: UpdateUserInput): Promise<UserEntity> {
     return this.usersService.update(updateUserInput);
