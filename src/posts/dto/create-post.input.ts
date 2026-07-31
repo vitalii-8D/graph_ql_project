@@ -3,6 +3,7 @@ import { IsNotEmpty, IsBoolean, IsOptional, IsArray, Matches, ValidateNested } f
 import { Type } from 'class-transformer';
 
 import { PostMetadataInput } from './post-metadata.input';
+import { PostImageInput } from '../../post-images/dto/post-image.input';
 
 @InputType()
 export class CreatePostInput {
@@ -33,4 +34,10 @@ export class CreatePostInput {
   @ValidateNested()
   @Type(() => PostMetadataInput)
   metadata?: PostMetadataInput;
+
+  @Field(() => PostImageInput, { nullable: true })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PostImageInput)
+  image?: PostImageInput;
 }

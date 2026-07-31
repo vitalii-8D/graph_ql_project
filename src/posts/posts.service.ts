@@ -8,6 +8,7 @@ import { OrderDirection } from '../enums/order-direction.enum';
 import { CreateOpenGraphInput } from '../open-graph/dto/create-open-graph.input';
 import { OgType } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
+import { PostImagesService } from '../post-images/post-images.service';
 import { UserEntity } from '../users/entities/user.entity';
 import { UserRole } from '../users/enums';
 import { CreatePostInput } from './dto/create-post.input';
@@ -24,10 +25,11 @@ export class PostsService {
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
     private openGraphService: OpenGraphService,
+    private postImagesService: PostImagesService,
   ) {}
 
   async create(createPostInput: CreatePostInput, user: AuthenticatedUser): Promise<PostEntity> {
-    const { categoryIds, metadata, ...postData } = createPostInput;
+    const { categoryIds, metadata, image, ...postData } = createPostInput;
 
     const author = await this.usersRepository.findOne({
       where: { id: user.id },
@@ -56,7 +58,7 @@ export class PostsService {
 
     const savedPost = await this.postsRepository.save(post);
 
-    const postMetadata: CreateOpenGraphInput = {
+    let postMetadata: CreateOpenGraphInput = {
       title: postData.title,
       description: postData.title.split('.')[0],
       type: OgType.ARTICLE,
@@ -67,6 +69,17 @@ export class PostsService {
       postMetadata.tags = metadata.tags;
       postMetadata.image = metadata.image;
       postMetadata.imageAlt = metadata.imageAlt;
+    }
+    if (image) {
+      const postImage = await this.postImagesService.upsertForPost(savedPost.id, image);
+      postMetadata = {
+        ...postMetadata,
+        image: postImage.url,
+      };
+
+      if (postImage.altText) {
+        postMetadata.imageAlt = postImage.altText;
+      }
     }
     await this.openGraphService.createForPost(savedPost.id, postMetadata);
 
@@ -97,7 +110,7 @@ export class PostsService {
   }
 
   async update(updatePostInput: UpdatePostInput, user: AuthenticatedUser): Promise<PostEntity> {
-    const { id, categoryIds, metadata, ...updateData } = updatePostInput;
+    const { id, categoryIds, metadata, image, ...updateData } = updatePostInput;
     const post = await this.findOne(id);
 
     if (user.role !== UserRole.ADMIN && post.authorId !== user.id) {
@@ -114,7 +127,7 @@ export class PostsService {
 
     const savedPost = await this.postsRepository.save({ ...post, id: post.id });
 
-    const postMetadata: Partial<CreateOpenGraphInput> = {
+    let postMetadata: Partial<CreateOpenGraphInput> = {
       title: updateData?.title,
       description: updateData?.title?.split('.')[0],
     };
@@ -122,6 +135,14 @@ export class PostsService {
       postMetadata.tags = metadata.tags;
       postMetadata.image = metadata.image;
       postMetadata.imageAlt = metadata.imageAlt;
+    }
+    if (image) {
+      const postImage = await this.postImagesService.upsertForPost(savedPost.id, image);
+      postMetadata = {
+        ...postMetadata,
+        image: postImage.url,
+        ...(postImage.altText ? { imageAlt: postImage.altText } : {}),
+      };
     }
     await this.openGraphService.upsertForPost(savedPost.id, postMetadata);
 

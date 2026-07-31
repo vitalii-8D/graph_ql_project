@@ -7,6 +7,8 @@ import { ChatRoomEntity } from '../chat/entities/chat-room.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { PostEntity } from '../posts/entities/post.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
+import { PostImageEntity } from '../post-images/entities/post-image.entity';
+import { UserAvatarEntity } from '../user-avatars/entities/user-avatar.entity';
 
 loadEnv();
 
@@ -17,7 +19,16 @@ export const databaseConfig: DataSourceOptions = {
   username: process.env.DATABASE_USER ?? 'postgres',
   password: process.env.DATABASE_PASSWORD ?? 'postgres',
   database: process.env.DATABASE_NAME ?? 'pdp_local',
-  entities: [CategoryEntity, UserEntity, PostEntity, OpenGraphMetadataEntity, ChatRoomEntity, ChatMessageEntity],
+  entities: [
+    CategoryEntity,
+    UserEntity,
+    PostEntity,
+    OpenGraphMetadataEntity,
+    ChatRoomEntity,
+    ChatMessageEntity,
+    PostImageEntity,
+    UserAvatarEntity,
+  ],
   synchronize: false,
-  logging: true,
+  logging: false,
 };

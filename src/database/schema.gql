@@ -71,6 +71,7 @@ input CreateOpenGraphInput {
 input CreatePostInput {
   categoryIds: [ID!]
   content: String!
+  image: PostImageInput
   metadata: PostMetadataInput
   published: Boolean! = false
   slug: String!
@@ -94,6 +95,12 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+input GenerateUploadUrlInput {
+  contentType: String!
+  fileName: String!
+  purpose: UploadPurpose!
+}
+
 input LoginInput {
   email: String!
   password: String!
@@ -104,11 +111,13 @@ type Mutation {
   createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadataEntity!
   createPost(createPostInput: CreatePostInput!): PostEntity!
   createUser(createUserInput: CreateUserInput!): UserEntity!
+  generateUploadUrl(input: GenerateUploadUrlInput!): PresignedUploadPayload!
   login(loginInput: LoginInput!): AuthResponse!
   removeOpenGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   removePost(id: ID!): PostEntity!
   removeUser(id: ID!): UserEntity!
   startDirectMessage(userId: ID!): ChatRoomEntity!
+  updateAvatar(input: UserAvatarInput!): UserAvatarEntity!
   updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadataEntity!
   updatePost(updatePostInput: UpdatePostInput!): PostEntity!
   updateUser(updateUserInput: UpdateUserInput!): UserEntity!
@@ -170,16 +179,45 @@ type PostEntity {
   createdAt: DateTime!
   id: ID!
   openGraphMetadata: OpenGraphMetadataEntity
+  postImage: PostImageEntity
   published: Boolean!
   slug: String!
   title: String!
   updatedAt: DateTime!
 }
 
+type PostImageEntity {
+  altText: String
+  createdAt: DateTime!
+  id: ID!
+  key: String!
+  mimeType: String!
+  originalFileName: String!
+  postId: ID!
+  sizeBytes: Float!
+  updatedAt: DateTime!
+  url: String!
+}
+
+input PostImageInput {
+  altText: String
+  key: String!
+  mimeType: String!
+  originalFileName: String!
+  sizeBytes: Int!
+  url: String!
+}
+
 input PostMetadataInput {
   image: String
   imageAlt: String
   tags: [String!]
+}
+
+type PresignedUploadPayload {
+  key: String!
+  publicUrl: String!
+  uploadUrl: String!
 }
 
 type Query {
@@ -247,6 +285,7 @@ input UpdatePostInput {
   categoryIds: [ID!]
   content: String
   id: ID!
+  image: PostImageInput
   metadata: PostMetadataInput
   published: Boolean = false
   slug: String
@@ -261,8 +300,35 @@ input UpdateUserInput {
   password: String
 }
 
+"""Purpose of a presigned upload, used to determine the S3 key prefix"""
+enum UploadPurpose {
+  POST_IMAGE
+  USER_AVATAR
+}
+
+type UserAvatarEntity {
+  createdAt: DateTime!
+  id: ID!
+  key: String!
+  mimeType: String!
+  originalFileName: String!
+  sizeBytes: Float!
+  updatedAt: DateTime!
+  url: String!
+  userId: ID!
+}
+
+input UserAvatarInput {
+  key: String!
+  mimeType: String!
+  originalFileName: String!
+  sizeBytes: Int!
+  url: String!
+}
+
 type UserEntity {
   age: Float
+  avatar: UserAvatarEntity
   email: String!
   id: ID!
   name: String!

@@ -1,7 +1,8 @@
 import { ObjectType, Field, ID, registerEnumType } from '@nestjs/graphql';
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, OneToOne } from 'typeorm';
 
 import { PostEntity } from '../../posts/entities/post.entity';
+import { UserAvatarEntity } from '../../user-avatars/entities/user-avatar.entity';
 import { UserRole } from '../enums';
 
 registerEnumType(UserRole, {
@@ -41,4 +42,8 @@ export class UserEntity {
   @Field(() => [PostEntity], { nullable: true })
   @OneToMany(() => PostEntity, (post) => post.author, { cascade: true })
   posts?: PostEntity[];
+
+  @Field(() => UserAvatarEntity, { nullable: true })
+  @OneToOne(() => UserAvatarEntity, (avatar) => avatar.user)
+  avatar?: UserAvatarEntity;
 }

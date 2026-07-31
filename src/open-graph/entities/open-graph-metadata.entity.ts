@@ -20,7 +20,6 @@ registerEnumType(OgType, {
 });
 
 // Docs: https://ogp.me/
-
 @ObjectType()
 @Entity('post_metadata')
 export class OpenGraphMetadataEntity {

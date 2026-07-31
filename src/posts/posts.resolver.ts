@@ -12,6 +12,8 @@ import { UsersService } from '../users/users.service';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
+import { PostImageEntity } from '../post-images/entities/post-image.entity';
+import { PostImagesService } from '../post-images/post-images.service';
 import type { AuthenticatedUser } from '../auth/types/common';
 
 @Resolver(() => PostEntity)
@@ -20,6 +22,7 @@ export class PostsResolver {
     private readonly postsService: PostsService,
     private readonly usersService: UsersService,
     private readonly openGraphService: OpenGraphService,
+    private readonly postImagesService: PostImagesService,
   ) {}
 
   @UseGuards(GqlAuthGuard)
@@ -69,5 +72,10 @@ export class PostsResolver {
   @ResolveField('openGraphMetadata', () => OpenGraphMetadataEntity, { nullable: true })
   async getOpenGraphMetadata(@Parent() post: PostEntity): Promise<OpenGraphMetadataEntity | null> {
     return this.openGraphService.findByPostId(post.id);
+  }
+
+  @ResolveField('postImage', () => PostImageEntity, { nullable: true })
+  async getPostImage(@Parent() post: PostEntity): Promise<PostImageEntity | null> {
+    return this.postImagesService.findByPostId(post.id);
   }
 }

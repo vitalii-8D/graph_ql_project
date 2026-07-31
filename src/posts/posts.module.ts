@@ -8,12 +8,14 @@ import { CategoryEntity } from '../categories/entities/category.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
 import { OpenGraphModule } from '../open-graph/open-graph.module';
+import { PostImagesModule } from '../post-images/post-images.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PostEntity, CategoryEntity, UserEntity]),
     forwardRef(() => UsersModule),
     OpenGraphModule,
+    PostImagesModule,
   ],
   providers: [PostsResolver, PostsService],
   exports: [PostsService],

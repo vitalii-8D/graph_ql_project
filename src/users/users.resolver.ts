@@ -9,6 +9,8 @@ import { UpdateUserInput } from './dto/update-user.input';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PostsService } from '../posts/posts.service';
+import { UserAvatarEntity } from '../user-avatars/entities/user-avatar.entity';
+import { UserAvatarsService } from '../user-avatars/user-avatars.service';
 
 @Resolver(() => UserEntity)
 export class UsersResolver {
@@ -16,6 +18,7 @@ export class UsersResolver {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => PostsService))
     private readonly postsService: PostsService,
+    private readonly userAvatarsService: UserAvatarsService,
   ) {}
 
   @Mutation(() => UserEntity)
@@ -64,5 +67,10 @@ export class UsersResolver {
   async getPosts(@Parent() author: UserEntity) {
     const { id } = author;
     return this.postsService.findByAuthorId(id);
+  }
+
+  @ResolveField('avatar', () => UserAvatarEntity, { nullable: true })
+  async getAvatar(@Parent() user: UserEntity): Promise<UserAvatarEntity | null> {
+    return this.userAvatarsService.findByUserId(user.id);
   }
 }

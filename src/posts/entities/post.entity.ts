@@ -15,6 +15,7 @@ import {
 import { UserEntity } from '../../users/entities/user.entity';
 import { CategoryEntity } from '../../categories/entities/category.entity';
 import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
+import { PostImageEntity } from '../../post-images/entities/post-image.entity';
 
 @ObjectType()
 @Entity('posts')
@@ -64,4 +65,8 @@ export class PostEntity {
   @Field(() => OpenGraphMetadataEntity, { nullable: true })
   @OneToOne(() => OpenGraphMetadataEntity, (metadata) => metadata.post, { cascade: true })
   openGraphMetadata?: OpenGraphMetadataEntity;
+
+  @Field(() => PostImageEntity, { nullable: true })
+  @OneToOne(() => PostImageEntity, (image) => image.post)
+  postImage?: PostImageEntity;
 }
