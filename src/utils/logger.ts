@@ -1,11 +1,12 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
-const prettyPrint = process.env.LOG_PRETTY_PRINT === 'true';
-const logLevel = process.env.LOG_LEVEL ?? 'info';
+import { config } from '../constants/config';
 
 export const createLogger = (context = 'Logger') => {
-  const transportFormat = prettyPrint ? winston.format.prettyPrint({ colorize: true }) : winston.format.json();
+  const transportFormat = config.logs.prettyPrint
+    ? winston.format.prettyPrint({ colorize: true })
+    : winston.format.json();
 
   return winston.createLogger({
     format: winston.format.combine(
@@ -13,7 +14,7 @@ export const createLogger = (context = 'Logger') => {
       winston.format.timestamp(),
       winston.format((info) => ({ ...info, context }))(),
     ),
-    level: logLevel,
+    level: config.logs.level,
     transports: [
       new winston.transports.Console({
         format: transportFormat,

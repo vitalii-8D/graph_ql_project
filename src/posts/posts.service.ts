@@ -14,6 +14,9 @@ import { UserRole } from '../users/enums';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
 import { PostEntity } from './entities/post.entity';
+import { PostStatus } from './enums';
+
+const AVERAGE_READING_SPEED_WPM = 200;
 
 @Injectable()
 export class PostsService {
@@ -52,6 +55,7 @@ export class PostsService {
 
     const post = this.postsRepository.create({
       ...postData,
+      readingTimeMinutes: this.computeReadingTime(postData.content),
       author,
       categories,
     });
@@ -87,7 +91,10 @@ export class PostsService {
   }
 
   async findAll(): Promise<PostEntity[]> {
-    return await this.postsRepository.find({ where: { published: true }, order: { createdAt: OrderDirection.DESC } });
+    return await this.postsRepository.find({
+      where: { status: PostStatus.PUBLISHED },
+      order: { createdAt: OrderDirection.DESC },
+    });
   }
 
   async findByAuthorId(authorId: number): Promise<PostEntity[]> {
@@ -118,6 +125,10 @@ export class PostsService {
     }
 
     Object.assign(post, updateData);
+
+    if (updateData.content) {
+      post.readingTimeMinutes = this.computeReadingTime(updateData.content);
+    }
 
     if (categoryIds) {
       post.categories = await this.categoriesRepository.findBy({
@@ -166,5 +177,19 @@ export class PostsService {
       relations: ['categories'],
     });
     return post?.categories ?? [];
+  }
+
+  async incrementViewCount(id: number): Promise<PostEntity> {
+    await this.postsRepository.increment({ id }, 'viewCount', 1);
+    return this.findOne(id);
+  }
+
+  async updateCommentAggregates(postId: number, commentCount: number, averageRating: number | null): Promise<void> {
+    await this.postsRepository.update({ id: postId }, { commentCount, averageRating });
+  }
+
+  private computeReadingTime(content: string): number {
+    const words = content.trim().split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.ceil(words / AVERAGE_READING_SPEED_WPM));
   }
 }

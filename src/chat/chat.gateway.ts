@@ -9,7 +9,6 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
 import { createLogger } from '../utils/logger';
@@ -21,6 +20,8 @@ import type { AuthenticatedSocket } from './types/common';
 import { AuthService } from '../auth/auth.service';
 import type { JwtPayload } from '../auth/types/common';
 import { UserRole } from '../users/enums';
+import { UsersService } from '../users/users.service';
+import { config } from '../constants/config';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -33,14 +34,18 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // one of several tabs/sockets for the same user joining/leaving.
   private readonly roomPresence = new Map<string, Map<number, Set<string>>>();
 
+  // userId -> set of socket ids, across all rooms - lets us only flip a user to
+  // offline once their *last* open socket (tab/device) disconnects.
+  private readonly userConnections = new Map<number, Set<string>>();
+
   @WebSocketServer()
   server: Server;
 
   constructor(
     private chatService: ChatService,
     private jwtService: JwtService,
-    private configService: ConfigService,
     private authService: AuthService,
+    private usersService: UsersService,
   ) {}
 
   afterInit(server: Server) {
@@ -57,8 +62,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           return;
         }
 
-        const secret = this.configService.get<string>('JWT_SECRET') ?? 'default-secret';
-        const payload = this.jwtService.verify<JwtPayload>(token, { secret });
+        const payload = this.jwtService.verify<JwtPayload>(token, { secret: config.auth.jwtSecret });
 
         const user = await this.authService.validatePayload(payload);
 
@@ -82,10 +86,47 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     client.on('disconnecting', () => {
       this.handleRoomDisconnect(client);
     });
+
+    const user = client.data.user;
+    if (user) {
+      this.trackUserConnect(user.id, client.id);
+      void this.usersService.setOnlineStatus(user.id, true);
+    }
   }
 
-  handleDisconnect(client: Socket) {
+  handleDisconnect(client: AuthenticatedSocket) {
     this.logger.info({ msg: 'Client disconnected', socketId: client.id });
+
+    const user = client.data.user;
+    if (user && this.wasLastSocketForUser(user.id, client.id)) {
+      void this.usersService.setOnlineStatus(user.id, false);
+    }
+  }
+
+  // Returns true only when this was the user's last open socket across all
+  // tabs/devices, so closing one of several tabs doesn't flip them offline.
+  private trackUserConnect(userId: number, socketId: string): void {
+    let sockets = this.userConnections.get(userId);
+    if (!sockets) {
+      sockets = new Set();
+      this.userConnections.set(userId, sockets);
+    }
+    sockets.add(socketId);
+  }
+
+  private wasLastSocketForUser(userId: number, socketId: string): boolean {
+    const sockets = this.userConnections.get(userId);
+    if (!sockets) {
+      return true;
+    }
+
+    sockets.delete(socketId);
+    if (sockets.size > 0) {
+      return false;
+    }
+
+    this.userConnections.delete(userId);
+    return true;
   }
 
   private handleRoomDisconnect(client: AuthenticatedSocket) {

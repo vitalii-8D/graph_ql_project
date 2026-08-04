@@ -59,6 +59,11 @@ export class PostsResolver {
     return this.postsService.remove(id, user);
   }
 
+  @Mutation(() => PostEntity)
+  incrementPostViewCount(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
+    return this.postsService.incrementViewCount(id);
+  }
+
   @ResolveField('author', () => UserEntity)
   async getAuthor(@Parent() post: PostEntity): Promise<UserEntity | null> {
     return this.usersService.findByIdPlain(post.authorId);

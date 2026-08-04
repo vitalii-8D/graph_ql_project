@@ -79,4 +79,8 @@ export class UsersService {
 
     return user;
   }
+
+  async setOnlineStatus(id: number, isOnline: boolean): Promise<void> {
+    await this.usersRepository.update({ id }, { isOnline, lastActiveAt: new Date() });
+  }
 }

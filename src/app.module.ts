@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -9,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { PostsModule } from './posts/posts.module';
 import { UtilsModule } from './utils/utils.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CommentsModule } from './comments/comments.module';
 import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
 import { AuthModule } from './auth/auth.module';
@@ -22,7 +22,6 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
     UtilsModule,
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
@@ -34,6 +33,7 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
     UsersModule,
     PostsModule,
     CategoriesModule,
+    CommentsModule,
     OpenGraphModule,
     SeederModule,
     AuthModule,

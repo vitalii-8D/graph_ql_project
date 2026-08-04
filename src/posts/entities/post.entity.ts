@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int, Float, registerEnumType } from '@nestjs/graphql';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,6 +6,7 @@ import {
   ManyToOne,
   ManyToMany,
   JoinTable,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
   OneToOne,
@@ -14,8 +15,15 @@ import {
 
 import { UserEntity } from '../../users/entities/user.entity';
 import { CategoryEntity } from '../../categories/entities/category.entity';
+import { CommentEntity } from '../../comments/entities/comment.entity';
 import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PostImageEntity } from '../../post-images/entities/post-image.entity';
+import { PostStatus } from '../enums';
+
+registerEnumType(PostStatus, {
+  name: 'PostStatus',
+  description: 'Post lifecycle status',
+});
 
 @ObjectType()
 @Entity('posts')
@@ -36,9 +44,28 @@ export class PostEntity {
   @Column()
   slug: string;
 
-  @Field()
-  @Column({ default: false })
-  published: boolean;
+  @Field(() => PostStatus)
+  @Column({
+    type: 'text',
+    default: PostStatus.DRAFT,
+  })
+  status: PostStatus;
+
+  @Field(() => Int)
+  @Column({ name: 'view_count', default: 0 })
+  viewCount: number;
+
+  @Field(() => Int)
+  @Column({ name: 'reading_time_minutes', default: 1 })
+  readingTimeMinutes: number;
+
+  @Field(() => Int)
+  @Column({ name: 'comment_count', default: 0 })
+  commentCount: number;
+
+  @Field(() => Float, { nullable: true })
+  @Column({ name: 'average_rating', type: 'float', nullable: true })
+  averageRating?: number | null;
 
   @Field(() => ID)
   @Column({ name: 'author_id' })
@@ -69,4 +96,8 @@ export class PostEntity {
   @Field(() => PostImageEntity, { nullable: true })
   @OneToOne(() => PostImageEntity, (image) => image.post)
   postImage?: PostImageEntity;
+
+  @Field(() => [CommentEntity], { nullable: true })
+  @OneToMany(() => CommentEntity, (comment) => comment.post)
+  comments?: CommentEntity[];
 }

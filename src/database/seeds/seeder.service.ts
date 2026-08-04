@@ -4,13 +4,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
 import { UserEntity } from '../../users/entities/user.entity';
+import { UserRole } from '../../users/enums';
 import { PostEntity } from '../../posts/entities/post.entity';
+import { PostStatus } from '../../posts/enums';
 import { CategoryEntity } from '../../categories/entities/category.entity';
+import { CommentEntity } from '../../comments/entities/comment.entity';
 import { OpenGraphMetadataEntity, OgType } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PasswordUtil } from '../../utils/password.util';
 import { formatSlug } from '../../utils/format-slug';
 
 const MOCK_PASSWORD = 'Password!1';
+const AVERAGE_READING_SPEED_WPM = 200;
+const ADMIN_USER_PROBABILITY = 0.1;
+const MAX_COMMENTS_PER_POST = 20;
 
 const CATEGORY_SEEDS = [
   { name: 'Technology', description: 'Tech-related posts' },
@@ -30,6 +36,8 @@ export class SeederService {
     private categoryRepository: Repository<CategoryEntity>,
     @InjectRepository(OpenGraphMetadataEntity)
     private openGraphRepository: Repository<OpenGraphMetadataEntity>,
+    @InjectRepository(CommentEntity)
+    private commentRepository: Repository<CommentEntity>,
     private readonly passwordUtil: PasswordUtil,
   ) {}
 
@@ -41,6 +49,8 @@ export class SeederService {
     const users = await this.createUsers(usersCount);
 
     const posts = await this.createPosts(postsCount, users, categories);
+
+    await this.createComments(posts, users);
 
     this.logBreakdown(users, posts);
 
@@ -85,6 +95,12 @@ export class SeederService {
       name: faker.person.fullName(),
       age: faker.number.int({ min: 18, max: 70 }),
       password: passwordHash,
+      role: faker.datatype.boolean({ probability: ADMIN_USER_PROBABILITY }) ? UserRole.ADMIN : UserRole.USER,
+      city: faker.location.city(),
+      latitude: faker.location.latitude(),
+      longitude: faker.location.longitude(),
+      lastActiveAt: faker.date.recent({ days: 30 }),
+      isOnline: false,
     };
   }
 
@@ -120,15 +136,77 @@ export class SeederService {
 
   private buildFakePost(author: UserEntity, categories: CategoryEntity[], index: number): Partial<PostEntity> {
     const title = faker.lorem.sentence({ min: 3, max: 8 }).replace(/\.$/, '');
+    const content = faker.lorem.paragraphs({ min: 2, max: 5 }, '\n\n');
+
+    const createdAt = faker.date.recent({ days: 10 });
+
+    const status = faker.helpers.weightedArrayElement([
+      { weight: 7, value: PostStatus.PUBLISHED }, // 70% probability
+      { weight: 2, value: PostStatus.DRAFT }, // 20% probability
+      { weight: 1, value: PostStatus.ARCHIVED }, // 10% probability
+    ]);
 
     return {
       title,
-      content: faker.lorem.paragraphs({ min: 2, max: 5 }, '\n\n'),
+      content,
       slug: `${formatSlug(title)}-${index}`,
-      published: faker.datatype.boolean(),
+      status,
+      viewCount: faker.number.int({ min: 0, max: 500 }),
+      readingTimeMinutes: this.computeReadingTime(content),
       author,
       categories: faker.helpers.arrayElements(categories, { min: 1, max: categories.length }),
+      updatedAt: createdAt,
+      createdAt,
     };
+  }
+
+  private computeReadingTime(content: string): number {
+    const words = content.trim().split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.ceil(words / AVERAGE_READING_SPEED_WPM));
+  }
+
+  private async createComments(posts: PostEntity[], users: UserEntity[]): Promise<void> {
+    console.log('Creating comments...');
+
+    const comments: CommentEntity[] = [];
+    for (const post of posts) {
+      const commentsCount = faker.number.int({ min: 0, max: MAX_COMMENTS_PER_POST });
+      for (let i = 0; i < commentsCount; i++) {
+        const commenter = faker.helpers.arrayElement(users);
+
+        const createdAt = faker.date.recent({ days: 10 });
+
+        comments.push(
+          this.commentRepository.create({
+            content: faker.lorem.sentences({ min: 1, max: 3 }),
+            rating: faker.number.int({ min: 1, max: 5 }),
+            postId: post.id,
+            authorId: commenter.id,
+            updatedAt: createdAt,
+            createdAt,
+          }),
+        );
+      }
+    }
+
+    if (comments.length === 0) {
+      console.log('Created 0 comments');
+      return;
+    }
+
+    await this.commentRepository.save(comments);
+
+    for (const post of posts) {
+      const postComments = comments.filter((comment) => comment.postId === post.id);
+      if (postComments.length === 0) {
+        continue;
+      }
+
+      const averageRating = postComments.reduce((sum, comment) => sum + comment.rating, 0) / postComments.length;
+      await this.postRepository.update({ id: post.id }, { commentCount: postComments.length, averageRating });
+    }
+
+    console.log(`Created ${comments.length} comments`);
   }
 
   private buildFakeOpenGraphMetadata(post: PostEntity): Partial<OpenGraphMetadataEntity> {

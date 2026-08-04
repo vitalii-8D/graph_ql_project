@@ -35,6 +35,47 @@ type ChatRoomEntity {
   updatedAt: DateTime!
 }
 
+type CommentEntity {
+  author: UserEntity!
+  authorId: ID!
+  content: String!
+  createdAt: DateTime!
+  id: ID!
+  post: PostEntity!
+  postId: ID!
+  rating: Int!
+  updatedAt: DateTime!
+}
+
+"""Time bucket granularity for comment analytics"""
+enum CommentPeriodGranularity {
+  DAY
+  MONTH
+}
+
+type CommentsPerPeriodStat {
+  count: Int!
+  period: String!
+}
+
+type CommentsPerPostStat {
+  count: Int!
+  postId: ID!
+  postTitle: String!
+}
+
+type CommentsPerUserStat {
+  count: Int!
+  userId: ID!
+  userName: String!
+}
+
+input CreateCommentInput {
+  content: String!
+  postId: ID!
+  rating: Int!
+}
+
 input CreateOpenGraphInput {
   audioUrl: String
   author: String
@@ -73,8 +114,8 @@ input CreatePostInput {
   content: String!
   image: PostImageInput
   metadata: PostMetadataInput
-  published: Boolean! = false
   slug: String!
+  status: PostStatus! = DRAFT
   title: String!
 }
 
@@ -85,7 +126,10 @@ input CreateRoomInput {
 
 input CreateUserInput {
   age: Float
+  city: String
   email: String!
+  latitude: Float
+  longitude: Float
   name: String!
   password: String!
 }
@@ -108,16 +152,20 @@ input LoginInput {
 
 type Mutation {
   createChatRoom(createRoomInput: CreateRoomInput!): ChatRoomEntity!
+  createComment(createCommentInput: CreateCommentInput!): CommentEntity!
   createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadataEntity!
   createPost(createPostInput: CreatePostInput!): PostEntity!
   createUser(createUserInput: CreateUserInput!): UserEntity!
   generateUploadUrl(input: GenerateUploadUrlInput!): PresignedUploadPayload!
+  incrementPostViewCount(id: ID!): PostEntity!
   login(loginInput: LoginInput!): AuthResponse!
+  removeComment(id: ID!): CommentEntity!
   removeOpenGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   removePost(id: ID!): PostEntity!
   removeUser(id: ID!): UserEntity!
   startDirectMessage(userId: ID!): ChatRoomEntity!
   updateAvatar(input: UserAvatarInput!): UserAvatarEntity!
+  updateComment(updateCommentInput: UpdateCommentInput!): CommentEntity!
   updateOpenGraphMetadata(updateOpenGraphInput: UpdateOpenGraphInput!): OpenGraphMetadataEntity!
   updatePost(updatePostInput: UpdatePostInput!): PostEntity!
   updateUser(updateUserInput: UpdateUserInput!): UserEntity!
@@ -174,16 +222,21 @@ type OpenGraphMetadataEntity {
 type PostEntity {
   author: UserEntity!
   authorId: ID!
+  averageRating: Float
   categories: [CategoryEntity!]!
+  commentCount: Int!
+  comments: [CommentEntity!]
   content: String!
   createdAt: DateTime!
   id: ID!
   openGraphMetadata: OpenGraphMetadataEntity
   postImage: PostImageEntity
-  published: Boolean!
+  readingTimeMinutes: Int!
   slug: String!
+  status: PostStatus!
   title: String!
   updatedAt: DateTime!
+  viewCount: Int!
 }
 
 type PostImageEntity {
@@ -214,6 +267,13 @@ input PostMetadataInput {
   tags: [String!]
 }
 
+"""Post lifecycle status"""
+enum PostStatus {
+  ARCHIVED
+  DRAFT
+  PUBLISHED
+}
+
 type PresignedUploadPayload {
   key: String!
   publicUrl: String!
@@ -225,6 +285,11 @@ type Query {
   chatRoom(id: ID!): ChatRoomEntity!
   chatRoomMessages(roomId: ID!): [ChatMessageEntity!]!
   chatRooms: [ChatRoomEntity!]!
+  commentRatingDistribution: [RatingDistributionStat!]!
+  commentsByPost(postId: ID!): [CommentEntity!]!
+  commentsPerPeriod(granularity: CommentPeriodGranularity!): [CommentsPerPeriodStat!]!
+  commentsPerPost: [CommentsPerPostStat!]!
+  commentsPerUser: [CommentsPerUserStat!]!
   generateOpenGraphTags(baseUrl: String!, id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
   me: UserEntity!
@@ -239,12 +304,23 @@ type Query {
   users: [UserEntity!]!
 }
 
+type RatingDistributionStat {
+  count: Int!
+  rating: Int!
+}
+
 type ShareLinks {
   facebook: String!
   linkedin: String!
   telegram: String!
   twitter: String!
   whatsapp: String!
+}
+
+input UpdateCommentInput {
+  content: String
+  id: ID!
+  rating: Int
 }
 
 input UpdateOpenGraphInput {
@@ -287,15 +363,18 @@ input UpdatePostInput {
   id: ID!
   image: PostImageInput
   metadata: PostMetadataInput
-  published: Boolean = false
   slug: String
+  status: PostStatus = DRAFT
   title: String
 }
 
 input UpdateUserInput {
   age: Float
+  city: String
   email: String
   id: ID!
+  latitude: Float
+  longitude: Float
   name: String
   password: String
 }
@@ -329,8 +408,15 @@ input UserAvatarInput {
 type UserEntity {
   age: Float
   avatar: UserAvatarEntity
+  city: String
+  comments: [CommentEntity!]
+  createdAt: DateTime!
   email: String!
   id: ID!
+  isOnline: Boolean!
+  lastActiveAt: DateTime
+  latitude: Float
+  longitude: Float
   name: String!
   posts: [PostEntity!]!
   role: UserRole!

@@ -1,38 +1,26 @@
 import { randomUUID } from 'node:crypto';
 
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+import { config } from '../constants/config';
 
 @Injectable()
 export class StorageService {
   private readonly client: S3Client;
-  private readonly bucket: string;
-  private readonly region: string;
-  private readonly expiresIn: number;
+  private readonly bucket = config.storage.awsS3BucketName;
+  private readonly region = config.storage.awsRegion;
+  private readonly expiresIn = config.storage.awsS3UploadUrlExpiresIn;
 
-  constructor(private readonly configService: ConfigService) {
-    this.region = this.require('AWS_REGION');
-    this.bucket = this.require('AWS_S3_BUCKET_NAME');
-    this.expiresIn = Number(this.configService.get<string>('AWS_S3_UPLOAD_URL_EXPIRES_IN') ?? 300);
+  constructor() {
     this.client = new S3Client({
       region: this.region,
       credentials: {
-        accessKeyId: this.require('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.require('AWS_SECRET_ACCESS_KEY'),
+        accessKeyId: config.storage.awsAccessKeyId,
+        secretAccessKey: config.storage.awsSecretAccessKey,
       },
     });
-  }
-
-  private require(key: string): string {
-    const value = this.configService.get<string>(key);
-
-    if (!value) {
-      throw new InternalServerErrorException(`Missing required config: ${key}`);
-    }
-
-    return value;
   }
 
   buildObjectKey(prefix: string, originalFileName: string): string {

@@ -1,22 +1,15 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable } from '@nestjs/common';
 import * as argon2 from 'argon2';
+
+import { config } from '../constants/config';
 
 @Injectable()
 export class PasswordUtil {
   private readonly memoryCost = 2 ** 16;
   private readonly timeCost = 3;
 
-  constructor(private readonly configService: ConfigService) {}
-
   async hash(password: string): Promise<string> {
-    const pepper = this.configService.get<string>('PASSWORD_SECRET');
-
-    if (!pepper) {
-      throw new InternalServerErrorException('Password secret is not defined in environment variables');
-    }
-
-    return argon2.hash(password + pepper, {
+    return argon2.hash(password + config.auth.passwordSecret, {
       type: argon2.argon2id,
       memoryCost: this.memoryCost,
       timeCost: this.timeCost,
@@ -27,10 +20,8 @@ export class PasswordUtil {
    * Validates a plain-text password against a stored hash
    */
   async validatePassword(password: string, hash: string): Promise<boolean> {
-    const pepper = this.configService.get<string>('PASSWORD_SECRET');
-
     try {
-      return await argon2.verify(hash, password + pepper);
+      return await argon2.verify(hash, password + config.auth.passwordSecret);
     } catch (error) {
       return false;
     }

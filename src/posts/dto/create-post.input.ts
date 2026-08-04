@@ -1,9 +1,10 @@
 import { InputType, Field, ID } from '@nestjs/graphql';
-import { IsNotEmpty, IsBoolean, IsOptional, IsArray, Matches, ValidateNested } from 'class-validator';
+import { IsNotEmpty, IsEnum, IsOptional, IsArray, Matches, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { PostMetadataInput } from './post-metadata.input';
 import { PostImageInput } from '../../post-images/dto/post-image.input';
+import { PostStatus } from '../enums';
 
 @InputType()
 export class CreatePostInput {
@@ -15,10 +16,10 @@ export class CreatePostInput {
   @IsNotEmpty()
   content: string;
 
-  @Field({ defaultValue: false })
-  @IsBoolean()
+  @Field(() => PostStatus, { defaultValue: PostStatus.DRAFT })
+  @IsEnum(PostStatus)
   @IsOptional()
-  published?: boolean;
+  status?: PostStatus;
 
   @Field(() => [ID], { nullable: true })
   @IsOptional()

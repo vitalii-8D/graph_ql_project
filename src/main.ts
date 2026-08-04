@@ -2,17 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
+import { config, validateEnv } from './constants/config';
 
 async function bootstrap() {
+  validateEnv();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors();
 
-  const port = process.env.PORT ?? 3000;
+  await app.listen(config.app.port);
 
-  await app.listen(port);
-
-  console.log(`Server is running on ${port} port`);
+  console.log(`Server is running on ${config.app.port} port`);
 }
 
 void bootstrap();
