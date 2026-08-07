@@ -6,8 +6,11 @@ import { UsersService } from './users.service';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
+import { SearchUsersInput } from './dto/search-users.input';
+import { UserSearchResult } from './dto/user-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/types/common';
 import { PostsService } from '../posts/posts.service';
 import { UserAvatarEntity } from '../user-avatars/entities/user-avatar.entity';
 import { UserAvatarsService } from '../user-avatars/user-avatars.service';
@@ -45,9 +48,12 @@ export class UsersResolver {
   }
 
   @UseGuards(GqlAuthGuard)
-  @Query(() => [UserEntity], { name: 'searchUsers' })
-  searchUsers(@Args('query') query: string, @CurrentUser() user: UserEntity): Promise<UserEntity[]> {
-    return this.usersService.search(query, user.id);
+  @Query(() => UserSearchResult, { name: 'searchUsers' })
+  searchUsers(
+    @Args('input') input: SearchUsersInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<UserSearchResult> {
+    return this.usersService.searchViaElasticsearch(input, user);
   }
 
   @UseGuards(GqlAuthGuard)

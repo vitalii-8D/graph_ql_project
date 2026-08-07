@@ -14,6 +14,9 @@ import { SeederModule } from './database/seeds/seeder.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { StorageModule } from './storage/storage.module';
+import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
+import { ReindexModule } from './elasticsearch/reindex.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
 import { GraphqlLoggingPlugin } from './utils/graphql-logging.plugin';
@@ -30,6 +33,7 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
       playground: true,
     }),
     TypeOrmModule.forRoot(databaseConfig),
+    ElasticsearchModule,
     UsersModule,
     PostsModule,
     CategoriesModule,
@@ -39,6 +43,8 @@ const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
     AuthModule,
     ChatModule,
     StorageModule,
+    ReindexModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [GraphqlLoggingPlugin],

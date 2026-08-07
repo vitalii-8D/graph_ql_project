@@ -27,13 +27,15 @@
     "migrate:create": "npm run typeorm -- migration:create",
     "migrate": "npm run typeorm -- migration:run -d src/database/database.source.ts",
     "migrate:revert": "npm run typeorm -- migration:revert -d src/database/database.source.ts",
-    "seed": "ts-node -r tsconfig-paths/register src/database/seeds/seed.ts"
+    "seed": "ts-node -r tsconfig-paths/register src/database/seeds/seed.ts",
+    "es:reindex": "ts-node -r tsconfig-paths/register src/elasticsearch/reindex.ts"
   },
   "dependencies": {
     "@apollo/server": "^5.5.1",
     "@as-integrations/express5": "^1.1.2",
     "@aws-sdk/client-s3": "^3.1097.0",
     "@aws-sdk/s3-request-presigner": "^3.1097.0",
+    "@elastic/elasticsearch": "^8.19.2",
     "@nestjs/apollo": "^13.2.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",

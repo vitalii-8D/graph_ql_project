@@ -1,0 +1,20 @@
+import { Injectable, OnModuleInit } from '@nestjs/common';
+
+import { ElasticsearchService } from './elasticsearch.service';
+import { ES_INDICES } from './indices';
+import { usersMapping } from './mappings/users.mapping';
+import { postsMapping } from './mappings/posts.mapping';
+import { commentsMapping } from './mappings/comments.mapping';
+
+@Injectable()
+export class IndexSetupService implements OnModuleInit {
+  constructor(private readonly elasticsearchService: ElasticsearchService) {}
+
+  async onModuleInit(): Promise<void> {
+    await Promise.all([
+      this.elasticsearchService.ensureIndex(ES_INDICES.users, usersMapping),
+      this.elasticsearchService.ensureIndex(ES_INDICES.posts, postsMapping),
+      this.elasticsearchService.ensureIndex(ES_INDICES.comments, commentsMapping),
+    ]);
+  }
+}

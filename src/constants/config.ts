@@ -67,4 +67,7 @@ export const config = {
     awsS3BucketName: process.env.AWS_S3_BUCKET_NAME!,
     awsS3UploadUrlExpiresIn: Number(process.env.AWS_S3_UPLOAD_URL_EXPIRES_IN),
   },
+  elasticsearch: {
+    node: process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200',
+  },
 };

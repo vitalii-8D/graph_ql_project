@@ -19,6 +19,24 @@ services:
     networks:
       - pdp_network
 
+  # ---------------------
+  # Elasticsearch
+  # ---------------------
+  elasticsearch:
+    container_name: pdp_elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - pdp_es_data:/usr/share/elasticsearch/data
+    networks:
+      - pdp_network
+
 # ---------------------
 # Networks
 # ---------------------
@@ -31,4 +49,5 @@ networks:
 # ---------------------
 volumes:
   pdp_db_data:
+  pdp_es_data:
 #  pdp_minio_data:

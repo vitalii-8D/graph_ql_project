@@ -5,6 +5,8 @@ import { PostsService } from './posts.service';
 import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
+import { SearchPostsInput } from './dto/search-posts.input';
+import { PostSearchResult } from './dto/post-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
@@ -42,6 +44,11 @@ export class PostsResolver {
   @Query(() => PostEntity, { name: 'post' })
   findOne(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
     return this.postsService.findOne(id);
+  }
+
+  @Query(() => PostSearchResult, { name: 'searchPosts' })
+  searchPosts(@Args('input') input: SearchPostsInput): Promise<PostSearchResult> {
+    return this.postsService.searchViaElasticsearch(input);
   }
 
   @UseGuards(GqlAuthGuard)

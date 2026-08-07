@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 
 import type { AuthenticatedUser } from '../auth/types/common';
 import { PostEntity } from '../posts/entities/post.entity';
+import { PostsService } from '../posts/posts.service';
 import { UserRole } from '../users/enums';
 import { CreateCommentInput } from './dto/create-comment.input';
 import { UpdateCommentInput } from './dto/update-comment.input';
@@ -15,6 +16,7 @@ import {
 } from './dto/comment-analytics.types';
 import { CommentPeriodGranularity } from './enums';
 import { CommentEntity } from './entities/comment.entity';
+import { CommentIndexService } from './comment-index.service';
 
 @Injectable()
 export class CommentsService {
@@ -23,6 +25,8 @@ export class CommentsService {
     private commentsRepository: Repository<CommentEntity>,
     @InjectRepository(PostEntity)
     private postsRepository: Repository<PostEntity>,
+    private postsService: PostsService,
+    private commentIndexService: CommentIndexService,
   ) {}
 
   async create(createCommentInput: CreateCommentInput, user: AuthenticatedUser): Promise<CommentEntity> {
@@ -38,6 +42,7 @@ export class CommentsService {
     const savedComment = await this.commentsRepository.save(comment);
 
     await this.recomputePostAggregates(savedComment.postId);
+    await this.commentIndexService.indexComment(savedComment);
 
     return savedComment;
   }
@@ -78,6 +83,7 @@ export class CommentsService {
     if (updateData.rating !== undefined) {
       await this.recomputePostAggregates(savedComment.postId);
     }
+    await this.commentIndexService.indexComment(savedComment);
 
     return savedComment;
   }
@@ -89,10 +95,12 @@ export class CommentsService {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
+    // repository.remove() nulls the entity's primary key on success — capture it first.
     await this.commentsRepository.remove(comment);
     await this.recomputePostAggregates(comment.postId);
+    await this.commentIndexService.deleteComment(id);
 
-    return comment;
+    return { ...comment, id };
   }
 
   private async recomputePostAggregates(postId: number): Promise<void> {
@@ -103,13 +111,10 @@ export class CommentsService {
       .where('comment.postId = :postId', { postId })
       .getRawOne<{ count: string; average: string | null }>();
 
-    await this.postsRepository.update(
-      { id: postId },
-      {
-        commentCount: Number(result?.count ?? 0),
-        averageRating: result?.average != null ? Number(result.average) : null,
-      },
-    );
+    const commentCount = Number(result?.count ?? 0);
+    const averageRating = result?.average != null ? Number(result.average) : null;
+
+    await this.postsService.updateCommentAggregates(postId, commentCount, averageRating);
   }
 
   async commentsPerPost(): Promise<CommentsPerPostStat[]> {

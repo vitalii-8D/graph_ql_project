@@ -2,6 +2,23 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AnalyticsDashboard {
+  commentVelocity: [CommentVelocityPoint!]!
+  commenterSentiment: [CommenterSentiment!]!
+  geoClusters: [GeoCluster!]!
+  negativeCommentTerms: [SignificantTerm!]!
+  roleBreakdown: [RoleBreakdownPoint!]!
+  topCities: [TermCount!]!
+  topRatedPosts: [TopRatedPost!]!
+  userGrowth: [DateCountPoint!]!
+}
+
+input AnalyticsDashboardInput {
+  geohashPrecision: Int = 5
+  topN: Int = 10
+  userGrowthInterval: CommentPeriodGranularity = DAY
+}
+
 type AuthResponse {
   accessToken: String!
   user: UserEntity!
@@ -12,6 +29,11 @@ type CategoryEntity {
   id: ID!
   name: String!
   posts: [PostEntity!]!
+}
+
+type CategoryFacet {
+  count: Int!
+  name: String!
 }
 
 type ChatMessageEntity {
@@ -51,6 +73,19 @@ type CommentEntity {
 enum CommentPeriodGranularity {
   DAY
   MONTH
+}
+
+type CommentVelocityPoint {
+  count: Int!
+  dailyChange: Float
+  date: String!
+}
+
+type CommenterSentiment {
+  criticalCount: Int!
+  positiveCount: Int!
+  userId: ID!
+  userName: String!
 }
 
 type CommentsPerPeriodStat {
@@ -134,6 +169,16 @@ input CreateUserInput {
   password: String!
 }
 
+type DateCountPoint {
+  count: Int!
+  date: String!
+}
+
+input DateRangeInput {
+  from: String
+  to: String
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -143,6 +188,13 @@ input GenerateUploadUrlInput {
   contentType: String!
   fileName: String!
   purpose: UploadPurpose!
+}
+
+type GeoCluster {
+  count: Int!
+  geohash: String!
+  latitude: Float!
+  longitude: Float!
 }
 
 input LoginInput {
@@ -267,6 +319,12 @@ input PostMetadataInput {
   tags: [String!]
 }
 
+type PostSearchResult {
+  facets: [CategoryFacet!]!
+  items: [PostEntity!]!
+  nextCursor: String
+}
+
 """Post lifecycle status"""
 enum PostStatus {
   ARCHIVED
@@ -281,6 +339,7 @@ type PresignedUploadPayload {
 }
 
 type Query {
+  analyticsDashboard(input: AnalyticsDashboardInput): AnalyticsDashboard!
   categories: [CategoryEntity!]!
   chatRoom(id: ID!): ChatRoomEntity!
   chatRoomMessages(roomId: ID!): [ChatMessageEntity!]!
@@ -299,7 +358,8 @@ type Query {
   openGraphMetadataList: [OpenGraphMetadataEntity!]!
   post(id: ID!): PostEntity!
   posts: [PostEntity!]!
-  searchUsers(query: String!): [UserEntity!]!
+  searchPosts(input: SearchPostsInput!): PostSearchResult!
+  searchUsers(input: SearchUsersInput!): UserSearchResult!
   user(id: ID!): UserEntity!
   users: [UserEntity!]!
 }
@@ -309,12 +369,70 @@ type RatingDistributionStat {
   rating: Int!
 }
 
+input ReadingTimeRangeInput {
+  max: Int
+  min: Int
+}
+
+type RoleBreakdownPoint {
+  offline: Int!
+  online: Int!
+  role: UserRole!
+}
+
+input SearchPostsInput {
+  categories: [String!]
+  createdAt: DateRangeInput
+  cursor: String
+  limit: Int = 10
+  mode: SearchPostsQueryMode = SIMPLE
+  query: String
+  readingTime: ReadingTimeRangeInput
+}
+
+"""
+Whether the free-text query is a plain weighted search or raw Elasticsearch query_string syntax
+"""
+enum SearchPostsQueryMode {
+  QUERY_STRING
+  SIMPLE
+}
+
+input SearchUsersInput {
+  cursor: String
+  latitude: Float
+  limit: Int = 10
+  longitude: Float
+  query: String
+  radiusKm: Int
+  role: UserRole
+  useMyLocation: Boolean = false
+}
+
 type ShareLinks {
   facebook: String!
   linkedin: String!
   telegram: String!
   twitter: String!
   whatsapp: String!
+}
+
+type SignificantTerm {
+  docCount: Int!
+  score: Float!
+  term: String!
+}
+
+type TermCount {
+  count: Int!
+  term: String!
+}
+
+type TopRatedPost {
+  averageRating: Float!
+  postId: ID!
+  postTitle: String!
+  ratingCount: Int!
 }
 
 input UpdateCommentInput {
@@ -426,4 +544,9 @@ type UserEntity {
 enum UserRole {
   ADMIN
   USER
+}
+
+type UserSearchResult {
+  items: [UserEntity!]!
+  nextCursor: String
 }
