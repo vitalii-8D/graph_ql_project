@@ -3,17 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import type { estypes } from '@elastic/elasticsearch';
 
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { UserSearchDocument } from '../elasticsearch/mappings/users.mapping';
-import { encodeCursor, decodeCursor } from '../elasticsearch/cursor.util';
-import type { AuthenticatedUser } from '../auth/types/common';
-import { PasswordUtil } from '../utils/password.util';
-import { CreateUserInput } from './dto/create-user.input';
-import { UpdateUserInput } from './dto/update-user.input';
-import { SearchUsersInput } from './dto/search-users.input';
-import { UserSearchResult } from './dto/user-search-result.type';
-import { UserEntity } from './entities/user.entity';
+import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../../elasticsearch/enums/indices';
+import { UserSearchDocument } from '../../elasticsearch/mappings/users.mapping';
+import { encodeCursor, decodeCursor } from '../../elasticsearch/utils/cursor.util';
+import type { AuthenticatedUser } from '../../auth/types/common';
+import { OrderDirection } from '../../enums/order-direction.enum';
+import { PasswordUtil } from '../../utils/password.util';
+import { sortByIds } from '../../utils/sort-by-ids';
+import { CreateUserInput } from '../dto/create-user.input';
+import { UpdateUserInput } from '../dto/update-user.input';
+import { SearchUsersInput } from '../dto/search-users.input';
+import { UserSearchResult } from '../dto/user-search-result.type';
+import { UserEntity } from '../entities/user.entity';
 import { UserIndexService } from './user-index.service';
 
 @Injectable()
@@ -63,30 +65,35 @@ export class UsersService {
     });
   }
 
-  async searchViaElasticsearch(input: SearchUsersInput, currentUser: AuthenticatedUser): Promise<UserSearchResult> {
+  async search(input: SearchUsersInput, currentUser: AuthenticatedUser): Promise<UserSearchResult> {
     const limit = input.limit ?? 10;
 
-    const must: estypes.QueryDslQueryContainer[] = input.query
-      ? [
-          {
-            multi_match: {
-              query: input.query,
-              fields: ['name^2', 'email', 'city'],
-              fuzziness: 'AUTO',
-            },
-          },
-        ]
-      : [{ match_all: {} }];
+    const must: estypes.QueryDslQueryContainer[] = [];
+    if (input.query) {
+      must.push({
+        multi_match: {
+          query: input.query,
+          fields: ['name^2', 'email', 'city'],
+          fuzziness: 'AUTO',
+        },
+      });
+    } else {
+      must.push({ match_all: {} });
+    }
 
     const filter: estypes.QueryDslQueryContainer[] = [];
     if (input.role) {
       filter.push({ term: { role: input.role } });
     }
 
-    const originLat = input.latitude ?? (input.useMyLocation ? currentUser.latitude : undefined);
-    const originLon = input.longitude ?? (input.useMyLocation ? currentUser.longitude : undefined);
-    const hasGeoFilter = input.radiusKm != null && originLat != null && originLon != null;
+    let originLat = input.latitude ?? 0;
+    let originLon = input.longitude ?? 0;
+    if (input.useMyLocation) {
+      originLat = currentUser.latitude ?? 0;
+      originLon = currentUser.longitude ?? 0;
+    }
 
+    const hasGeoFilter = input.radiusKm && originLat && originLon;
     if (hasGeoFilter) {
       filter.push({
         geo_distance: {
@@ -96,13 +103,15 @@ export class UsersService {
       });
     }
 
-    const sort: estypes.SortCombinations[] = [{ _score: { order: 'desc' } }];
+    const sort: estypes.SortCombinations[] = [{ _score: { order: OrderDirection.DESC } }];
     if (hasGeoFilter) {
-      sort.push({ _geo_distance: { location: { lat: originLat, lon: originLon }, order: 'asc', unit: 'km' } });
+      sort.push({
+        _geo_distance: { location: { lat: originLat, lon: originLon }, order: OrderDirection.ASC, unit: 'km' },
+      });
     }
-    sort.push({ lastActiveAt: { order: 'desc', missing: '_last' } }, { id: 'asc' });
+    sort.push({ lastActiveAt: { order: OrderDirection.DESC, missing: '_last' } }, { id: OrderDirection.ASC });
 
-    const response = await this.elasticsearchService.search<UserSearchDocument>(ES_INDICES.users, {
+    const response = await this.elasticsearchService.search<UserSearchDocument>(ES_INDICES.Users, {
       query: {
         bool: {
           must,
@@ -118,11 +127,12 @@ export class UsersService {
     const hits = response.hits.hits;
     const ids = hits.map((hit) => Number(hit._id));
     const rows = ids.length > 0 ? await this.usersRepository.findBy({ id: In(ids) }) : [];
-    const rowsById = new Map(rows.map((row) => [row.id, row]));
-    const items = ids.map((id) => rowsById.get(id)).filter((row): row is UserEntity => Boolean(row));
+
+    const items = sortByIds(ids, rows);
 
     const lastHit = hits[hits.length - 1];
-    const nextCursor = hits.length === limit ? encodeCursor(lastHit?.sort as (string | number)[] | undefined) : undefined;
+    const nextCursor =
+      hits.length === limit ? encodeCursor(lastHit?.sort as (string | number)[] | undefined) : undefined;
 
     return { items, nextCursor };
   }

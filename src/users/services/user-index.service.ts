@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { computeDocHash } from '../elasticsearch/hash.util';
-import { UserSearchDocument } from '../elasticsearch/mappings/users.mapping';
-import { UserEntity } from './entities/user.entity';
+import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../../elasticsearch/enums/indices';
+import { computeDocHash } from '../../elasticsearch/utils/hash.util';
+import { UserSearchDocument } from '../../elasticsearch/mappings/users.mapping';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class UserIndexService {
@@ -16,7 +16,8 @@ export class UserIndexService {
       name: user.name,
       email: user.email,
       city: user.city ?? undefined,
-      location: user.latitude != null && user.longitude != null ? { lat: user.latitude, lon: user.longitude } : undefined,
+      location:
+        user.latitude != null && user.longitude != null ? { lat: user.latitude, lon: user.longitude } : undefined,
       role: user.role,
       isOnline: user.isOnline,
       lastActiveAt: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : undefined,
@@ -27,17 +28,17 @@ export class UserIndexService {
   }
 
   async indexUser(user: UserEntity): Promise<void> {
-    await this.elasticsearchService.indexDocument(ES_INDICES.users, user.id, this.toDocument(user));
+    await this.elasticsearchService.indexDocument(ES_INDICES.Users, user.id, this.toDocument(user));
   }
 
   async updateOnlineStatus(userId: number, isOnline: boolean, lastActiveAt: Date): Promise<void> {
-    await this.elasticsearchService.updateDocument<UserSearchDocument>(ES_INDICES.users, userId, {
+    await this.elasticsearchService.updateDocument<UserSearchDocument>(ES_INDICES.Users, userId, {
       isOnline,
       lastActiveAt: lastActiveAt.toISOString(),
     });
   }
 
   async deleteUser(userId: number): Promise<void> {
-    await this.elasticsearchService.deleteDocument(ES_INDICES.users, userId);
+    await this.elasticsearchService.deleteDocument(ES_INDICES.Users, userId);
   }
 }

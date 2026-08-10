@@ -18,6 +18,17 @@ const AVERAGE_READING_SPEED_WPM = 200;
 const ADMIN_USER_PROBABILITY = 0.1;
 const MAX_COMMENTS_PER_POST = 20;
 
+const BASE_CITY = 'Івано-Франківськ';
+const BASE_LOCATION = { latitude: 48.9224763, longitude: 24.710334 };
+const EARTH_RADIUS_KM = 6371;
+
+const DISTANCE_BANDS_KM = [
+  { maxKm: 5, weight: 30 }, // 50% within 5km
+  { maxKm: 25, weight: 30 }, // 30% within 5-25km
+  { maxKm: 100, weight: 20 }, // 15% within 25-100km
+  { maxKm: 200, weight: 20 }, // 5% within 100-200km
+];
+
 const CATEGORY_SEEDS = [
   { name: 'Technology', description: 'Tech-related posts' },
   { name: 'Lifestyle', description: 'Lifestyle and wellness posts' },
@@ -90,18 +101,47 @@ export class SeederService {
   }
 
   private buildFakeUser(passwordHash: string): Partial<UserEntity> {
+    const createdAt = faker.date.recent({ days: 10 });
+
     return {
       email: faker.internet.email().toLowerCase(),
       name: faker.person.fullName(),
       age: faker.number.int({ min: 18, max: 70 }),
       password: passwordHash,
       role: faker.datatype.boolean({ probability: ADMIN_USER_PROBABILITY }) ? UserRole.ADMIN : UserRole.USER,
-      city: faker.location.city(),
-      latitude: faker.location.latitude(),
-      longitude: faker.location.longitude(),
+      city: BASE_CITY,
+      ...this.randomLocationNearBase(),
       lastActiveAt: faker.date.recent({ days: 30 }),
       isOnline: false,
+      createdAt,
     };
+  }
+
+  private randomLocationNearBase(): { latitude: number; longitude: number } {
+    const { minKm, maxKm } = this.pickDistanceBand();
+
+    const angle = faker.number.float({ min: 0, max: 2 * Math.PI });
+    // sqrt spacing keeps points uniformly spread by area across the ring, instead of bunching near its inner edge
+    const distanceKm = Math.sqrt(faker.number.float({ min: minKm ** 2, max: maxKm ** 2 }));
+
+    const baseLatRad = (BASE_LOCATION.latitude * Math.PI) / 180;
+    const deltaLat = ((distanceKm * Math.cos(angle)) / EARTH_RADIUS_KM) * (180 / Math.PI);
+    const deltaLon = ((distanceKm * Math.sin(angle)) / (EARTH_RADIUS_KM * Math.cos(baseLatRad))) * (180 / Math.PI);
+
+    return {
+      latitude: BASE_LOCATION.latitude + deltaLat,
+      longitude: BASE_LOCATION.longitude + deltaLon,
+    };
+  }
+
+  private pickDistanceBand(): { minKm: number; maxKm: number } {
+    const bandIndex = faker.helpers.weightedArrayElement(
+      DISTANCE_BANDS_KM.map(({ weight }, index) => ({ weight, value: index })),
+    );
+    const maxKm = DISTANCE_BANDS_KM[bandIndex].maxKm;
+    const minKm = bandIndex === 0 ? 0 : DISTANCE_BANDS_KM[bandIndex - 1].maxKm;
+
+    return { minKm, maxKm };
   }
 
   private async createPosts(count: number, users: UserEntity[], categories: CategoryEntity[]): Promise<PostEntity[]> {

@@ -9,7 +9,10 @@ export function encodeCursor(sortValues: (string | number)[] | undefined | null)
 }
 
 export function decodeCursor(cursor: string | undefined | null): (string | number)[] | undefined {
-  if (!cursor) return undefined;
+  if (!cursor) {
+    return undefined;
+  }
+
   try {
     const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'));
     return Array.isArray(parsed) ? (parsed as (string | number)[]) : undefined;

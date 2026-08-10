@@ -5,7 +5,7 @@ import { ChatRoomEntity } from './entities/chat-room.entity';
 import { ChatMessageEntity } from './entities/chat-message.entity';
 import { CreateRoomInput } from './dto/create-room.input';
 import { SendMessageInput } from './dto/send-message.input';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../users/services/users.service';
 import { UserEntity } from '../users/entities/user.entity';
 
 @Injectable()

@@ -2,30 +2,30 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import type { estypes } from '@elastic/elasticsearch';
-import type { AuthenticatedUser } from '../auth/types/common';
-import { CategoryEntity } from '../categories/entities/category.entity';
-import { SITE_NAME } from '../constants/common';
-import { OrderDirection } from '../enums/order-direction.enum';
-import { CreateOpenGraphInput } from '../open-graph/dto/create-open-graph.input';
-import { OgType } from '../open-graph/entities/open-graph-metadata.entity';
-import { OpenGraphService } from '../open-graph/services/open-graph.service';
-import { PostImagesService } from '../post-images/post-images.service';
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { PostSearchDocument } from '../elasticsearch/mappings/posts.mapping';
-import { encodeCursor, decodeCursor } from '../elasticsearch/cursor.util';
-import { UserEntity } from '../users/entities/user.entity';
-import { UserRole } from '../users/enums';
-import { CreatePostInput } from './dto/create-post.input';
-import { UpdatePostInput } from './dto/update-post.input';
-import { SearchPostsInput, SearchPostsQueryMode } from './dto/search-posts.input';
-import { PostSearchResult, CategoryFacet } from './dto/post-search-result.type';
-import { PostEntity } from './entities/post.entity';
+import type { AuthenticatedUser } from '../../auth/types/common';
+import { CategoryEntity } from '../../categories/entities/category.entity';
+import { SITE_NAME } from '../../constants/common';
+import { OrderDirection } from '../../enums/order-direction.enum';
+import { CreateOpenGraphInput } from '../../open-graph/dto/create-open-graph.input';
+import { OgType } from '../../open-graph/entities/open-graph-metadata.entity';
+import { OpenGraphService } from '../../open-graph/services/open-graph.service';
+import { PostImagesService } from '../../post-images/post-images.service';
+import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../../elasticsearch/enums/indices';
+import { PostSearchDocument } from '../../elasticsearch/mappings/posts.mapping';
+import { encodeCursor, decodeCursor } from '../../elasticsearch/utils/cursor.util';
+import { UserEntity } from '../../users/entities/user.entity';
+import { UserRole } from '../../users/enums';
+import { sortByIds } from '../../utils/sort-by-ids';
+import { CreatePostInput } from '../dto/create-post.input';
+import { UpdatePostInput } from '../dto/update-post.input';
+import { SearchPostsInput } from '../dto/search-posts.input';
+import { PostSearchResult } from '../dto/post-search-result.type';
+import { PostEntity } from '../entities/post.entity';
 import { PostIndexService } from './post-index.service';
-import { PostStatus } from './enums';
+import { PostStatus } from '../enums';
 
 const AVERAGE_READING_SPEED_WPM = 200;
-const CATEGORY_FACET_SIZE = 50;
 
 @Injectable()
 export class PostsService {
@@ -210,73 +210,60 @@ export class PostsService {
     await this.postIndexService.reindexOne(postId);
   }
 
-  async searchViaElasticsearch(input: SearchPostsInput): Promise<PostSearchResult> {
+  async search(input: SearchPostsInput): Promise<PostSearchResult> {
     const limit = input.limit ?? 10;
     const hasQuery = Boolean(input.query);
 
-    let must: estypes.QueryDslQueryContainer[];
-    if (!hasQuery) {
-      // Doc's explicit "zero-query-text" default-browse case — match_all, not a separate code path.
-      must = [{ match_all: {} }];
-    } else if (input.mode === SearchPostsQueryMode.QUERY_STRING) {
-      must = [{ query_string: { query: input.query!, fields: ['title^3', 'content^2', 'author.name'] } }];
-    } else {
-      must = [
-        {
-          multi_match: {
-            query: input.query!,
-            fields: ['title^3', 'content^2', 'author.name^1'],
-            type: 'best_fields',
-            fuzziness: 'AUTO',
-            tie_breaker: 0.3,
-          },
+    const must: estypes.QueryDslQueryContainer[] = [];
+    if (hasQuery) {
+      must.push({
+        multi_match: {
+          query: input.query!,
+          fields: ['title^3', 'content^2', 'author.name^1'],
+          type: 'best_fields',
+          fuzziness: 'AUTO',
+          tie_breaker: 0.3,
         },
-      ];
+      });
+    } else {
+      must.push({ match_all: {} });
     }
 
     const filter: estypes.QueryDslQueryContainer[] = [{ term: { status: PostStatus.PUBLISHED } }];
     if (input.categories && input.categories.length > 0) {
-      filter.push({ terms: { 'categories.name': input.categories } });
+      filter.push(...input.categories.map((category) => ({ term: { 'categories.name': category } })));
     }
     if (input.createdAt?.from || input.createdAt?.to) {
       filter.push({ range: { createdAt: { gte: input.createdAt.from, lte: input.createdAt.to } } });
     }
-    if (input.readingTime?.min != null || input.readingTime?.max != null) {
+    if (input.readingTime?.min || input.readingTime?.max) {
       filter.push({ range: { readingTimeMinutes: { gte: input.readingTime.min, lte: input.readingTime.max } } });
     }
 
     const query: estypes.QueryDslQueryContainer = { bool: { must, filter } };
 
     const sort: estypes.SortCombinations[] = hasQuery
-      ? [{ _score: { order: 'desc' } }, { id: 'asc' }]
-      : [{ createdAt: { order: 'desc' } }, { id: 'asc' }];
+      ? [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }]
+      : [{ createdAt: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
 
-    const response = await this.elasticsearchService.search<PostSearchDocument>(ES_INDICES.posts, {
+    const response = await this.elasticsearchService.search<PostSearchDocument>(ES_INDICES.Posts, {
       query,
       sort,
       size: limit,
       search_after: decodeCursor(input.cursor),
-      aggs: {
-        categoryFacets: { terms: { field: 'categories.name', size: CATEGORY_FACET_SIZE } },
-      },
     });
 
     const hits = response.hits.hits;
     const ids = hits.map((hit) => Number(hit._id));
     const rows = ids.length > 0 ? await this.postsRepository.find({ where: { id: In(ids) } }) : [];
-    const rowsById = new Map(rows.map((row) => [row.id, row]));
-    const items = ids.map((id) => rowsById.get(id)).filter((row): row is PostEntity => Boolean(row));
 
-    const facetBuckets =
-      (response.aggregations?.categoryFacets as estypes.AggregationsStringTermsAggregate | undefined)?.buckets ?? [];
-    const facets: CategoryFacet[] = Array.isArray(facetBuckets)
-      ? facetBuckets.map((bucket) => ({ name: String(bucket.key), count: bucket.doc_count }))
-      : [];
+    const items = sortByIds(ids, rows);
 
     const lastHit = hits[hits.length - 1];
-    const nextCursor = hits.length === limit ? encodeCursor(lastHit?.sort as (string | number)[] | undefined) : undefined;
+    const nextCursor =
+      hits.length === limit ? encodeCursor(lastHit?.sort as (string | number)[] | undefined) : undefined;
 
-    return { items, facets, nextCursor };
+    return { items, nextCursor };
   }
 
   private computeReadingTime(content: string): number {

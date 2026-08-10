@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { estypes } from '@elastic/elasticsearch';
 
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { PostsService } from '../posts/posts.service';
-import { UsersService } from '../users/users.service';
+import { ElasticsearchService } from '../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../elasticsearch/enums/indices';
+import { OrderDirection } from '../enums/order-direction.enum';
+import { PostsService } from '../posts/services/posts.service';
+import { UsersService } from '../users/services/users.service';
 import { UserRole } from '../users/enums';
 import { AnalyticsDashboardInput } from './dto/analytics-dashboard.input';
 import {
@@ -33,16 +34,18 @@ export class AnalyticsService {
 
   async getDashboard(input: AnalyticsDashboardInput): Promise<AnalyticsDashboard> {
     const topN = input.topN ?? 10;
-    const geohashPrecision = input.geohashPrecision ?? 5;
+    const geohashPrecision = input.geohashPrecision ?? 4;
     const userGrowthInterval = input.userGrowthInterval ?? 'day';
 
     const response = await this.elasticsearchService.msearch<unknown>([
       {
-        index: ES_INDICES.users,
+        index: ES_INDICES.Users,
         body: {
           size: 0,
           aggs: {
+            // Tracks user sign-ups over time.
             userGrowth: { date_histogram: { field: 'createdAt', calendar_interval: userGrowthInterval } },
+            // Measures user count per system role, sub-divided by active status.
             roleBreakdown: {
               terms: { field: 'role' },
               aggs: {
@@ -57,26 +60,34 @@ export class AnalyticsService {
               },
             },
             topCities: { terms: { field: 'city.keyword', size: TOP_CITIES_SIZE } },
+            // Clusters user locations on a map and finds the exact geographic center point for each cluster.
+            // Output: Grid cell buckets containing the total user count and the exact geometric coordinates needed to place map markers/pins dynamically.
             geoClusters: {
+              // Overlays a global grid on the map based on the geohashPrecision level (e.g., level 3 for large regions, level 7 for neighborhood blocks) and groups user GPS points (location) into these grid cells.
               geohash_grid: { field: 'location', precision: geohashPrecision },
+              // Calculates the average latitude and longitude (the geographical center) of all point coordinates within that specific grid cell.
               aggs: { centroid: { geo_centroid: { field: 'location' } } },
             },
           },
         },
       },
       {
-        index: ES_INDICES.comments,
+        index: ES_INDICES.Comments,
         body: {
           size: 0,
           aggs: {
             topRatedPosts: {
-              terms: { field: 'postId', size: topN, order: { avgRating: 'desc' } },
+              terms: { field: 'postId', size: topN, order: { avgRating: OrderDirection.DESC } },
               aggs: { avgRating: { avg: { field: 'rating' } } },
             },
+            // Measures daily comment volumes and how fast comment activity is accelerating or decelerating day-over-day.
             commentVelocity: {
+              // Buckets comments day-by-day based on their createdAt timestamp.
               date_histogram: { field: 'createdAt', calendar_interval: 'day' },
+              // Uses the pipeline derivative function referencing _count (the number of comments in that day's bucket) to calculate the day-over-day change in comment count.
               aggs: { velocity: { derivative: { buckets_path: '_count' } } },
             },
+            // Divides comments into positive and negative buckets based on numeric rating thresholds, then identifies the top authors contributing to each sentiment bucket.
             sentiment: {
               filters: {
                 filters: {
@@ -90,7 +101,7 @@ export class AnalyticsService {
         },
       },
       {
-        index: ES_INDICES.comments,
+        index: ES_INDICES.Comments,
         body: {
           size: 0,
           query: { range: { rating: { lte: NEGATIVE_RATING_THRESHOLD } } },
@@ -119,7 +130,9 @@ export class AnalyticsService {
     const { topRatedPosts, topRatedPostIds } = this.mapTopRatedPostBuckets(
       commentsAggs?.topRatedPosts as estypes.AggregationsLongTermsAggregate,
     );
-    const commentVelocity = this.mapCommentVelocity(commentsAggs?.commentVelocity as estypes.AggregationsDateHistogramAggregate);
+    const commentVelocity = this.mapCommentVelocity(
+      commentsAggs?.commentVelocity as estypes.AggregationsDateHistogramAggregate,
+    );
     const { commenterSentiment, sentimentUserIds } = this.mapCommenterSentiment(
       commentsAggs?.sentiment as estypes.AggregationsFiltersAggregate,
     );
@@ -140,7 +153,10 @@ export class AnalyticsService {
       roleBreakdown,
       topCities,
       geoClusters,
-      topRatedPosts: topRatedPosts.map((post) => ({ ...post, postTitle: postTitleById.get(post.postId) ?? `Post #${post.postId}` })),
+      topRatedPosts: topRatedPosts.map((post) => ({
+        ...post,
+        postTitle: postTitleById.get(post.postId) ?? `Post #${post.postId}`,
+      })),
       commentVelocity,
       commenterSentiment: commenterSentiment.map((entry) => ({
         ...entry,
@@ -156,7 +172,9 @@ export class AnalyticsService {
   }
 
   private mapRoleBreakdown(agg: estypes.AggregationsStringTermsAggregate | undefined): RoleBreakdownPoint[] {
-    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsStringTermsBucket & { presence?: estypes.AggregationsFiltersAggregate })[];
+    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsStringTermsBucket & {
+      presence?: estypes.AggregationsFiltersAggregate;
+    })[];
 
     return buckets.map((bucket) => {
       const presenceBuckets = bucket.presence?.buckets as Record<string, estypes.AggregationsFiltersBucket> | undefined;
@@ -174,7 +192,9 @@ export class AnalyticsService {
   }
 
   private mapGeoClusters(agg: estypes.AggregationsGeoHashGridAggregate | undefined): GeoCluster[] {
-    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsGeoHashGridBucket & { centroid?: estypes.AggregationsGeoCentroidAggregate })[];
+    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsGeoHashGridBucket & {
+      centroid?: estypes.AggregationsGeoCentroidAggregate;
+    })[];
 
     return buckets.map((bucket) => {
       const location = bucket.centroid?.location as { lat: number; lon: number } | undefined;
@@ -191,7 +211,9 @@ export class AnalyticsService {
     topRatedPosts: Omit<TopRatedPost, 'postTitle'>[];
     topRatedPostIds: number[];
   } {
-    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsLongTermsBucket & { avgRating?: estypes.AggregationsAvgAggregate })[];
+    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsLongTermsBucket & {
+      avgRating?: estypes.AggregationsAvgAggregate;
+    })[];
 
     const topRatedPosts = buckets.map((bucket) => ({
       postId: Number(bucket.key),
@@ -203,7 +225,9 @@ export class AnalyticsService {
   }
 
   private mapCommentVelocity(agg: estypes.AggregationsDateHistogramAggregate | undefined): CommentVelocityPoint[] {
-    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsDateHistogramBucket & { velocity?: estypes.AggregationsDerivativeAggregate })[];
+    const buckets = (agg?.buckets ?? []) as (estypes.AggregationsDateHistogramBucket & {
+      velocity?: estypes.AggregationsDerivativeAggregate;
+    })[];
 
     return buckets.map((bucket) => ({
       date: String(bucket.key_as_string ?? bucket.key),
@@ -241,6 +265,10 @@ export class AnalyticsService {
 
   private mapSignificantTerms(agg: estypes.AggregationsSignificantStringTermsAggregate | undefined): SignificantTerm[] {
     const buckets = (agg?.buckets ?? []) as estypes.AggregationsSignificantStringTermsBucket[];
-    return buckets.map((bucket) => ({ term: String(bucket.key), score: bucket.score ?? 0, docCount: bucket.doc_count }));
+    return buckets.map((bucket) => ({
+      term: String(bucket.key),
+      score: bucket.score ?? 0,
+      docCount: bucket.doc_count,
+    }));
   }
 }

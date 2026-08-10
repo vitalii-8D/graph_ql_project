@@ -1,15 +1,5 @@
-import { InputType, Field, Int, registerEnumType } from '@nestjs/graphql';
-import { IsOptional, IsString, IsInt, IsEnum, Min, Max, IsDateString, IsArray } from 'class-validator';
-
-export enum SearchPostsQueryMode {
-  SIMPLE = 'simple',
-  QUERY_STRING = 'query_string',
-}
-
-registerEnumType(SearchPostsQueryMode, {
-  name: 'SearchPostsQueryMode',
-  description: 'Whether the free-text query is a plain weighted search or raw Elasticsearch query_string syntax',
-});
+import { InputType, Field, Int } from '@nestjs/graphql';
+import { IsOptional, IsString, IsInt, Min, Max, IsDateString, IsArray } from 'class-validator';
 
 @InputType()
 export class DateRangeInput {
@@ -45,11 +35,6 @@ export class SearchPostsInput {
   @IsOptional()
   @IsString()
   query?: string;
-
-  @Field(() => SearchPostsQueryMode, { nullable: true, defaultValue: SearchPostsQueryMode.SIMPLE })
-  @IsOptional()
-  @IsEnum(SearchPostsQueryMode)
-  mode?: SearchPostsQueryMode;
 
   @Field(() => [String], { nullable: true })
   @IsOptional()

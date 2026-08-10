@@ -1,8 +1,7 @@
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards, forwardRef, Inject } from '@nestjs/common';
-import { PostEntity } from '../posts/entities/post.entity';
 
-import { UsersService } from './users.service';
+import { UsersService } from './services/users.service';
 import { UserEntity } from './entities/user.entity';
 import { CreateUserInput } from './dto/create-user.input';
 import { UpdateUserInput } from './dto/update-user.input';
@@ -11,9 +10,10 @@ import { UserSearchResult } from './dto/user-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/common';
-import { PostsService } from '../posts/posts.service';
+import { PostsService } from '../posts/services/posts.service';
 import { UserAvatarEntity } from '../user-avatars/entities/user-avatar.entity';
 import { UserAvatarsService } from '../user-avatars/user-avatars.service';
+import { PostEntity } from '../posts/entities/post.entity';
 
 @Resolver(() => UserEntity)
 export class UsersResolver {
@@ -53,7 +53,7 @@ export class UsersResolver {
     @Args('input') input: SearchUsersInput,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<UserSearchResult> {
-    return this.usersService.searchViaElasticsearch(input, user);
+    return this.usersService.search(input, user);
   }
 
   @UseGuards(GqlAuthGuard)

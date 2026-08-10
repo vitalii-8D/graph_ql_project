@@ -3,11 +3,12 @@ import { parseArgs } from 'node:util';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from '../app.module';
-import { ReindexService, type ReindexTarget } from './reindex.service';
+import { ES_INDICES } from './enums/indices';
+import { ReindexService } from './services/reindex.service';
 
-const ALL_TARGETS: ReindexTarget[] = ['users', 'posts', 'comments'];
+const ALL_TARGETS: ES_INDICES[] = Object.values(ES_INDICES);
 
-function parseReindexOptions(): { targets: ReindexTarget[]; recreate: boolean } {
+function parseReindexOptions(): { targets: ES_INDICES[]; recreate: boolean } {
   const { values } = parseArgs({
     options: {
       index: { type: 'string', short: 'i' },
@@ -17,11 +18,11 @@ function parseReindexOptions(): { targets: ReindexTarget[]; recreate: boolean } 
   });
 
   const requested = values.index ?? 'all';
-  if (requested !== 'all' && !ALL_TARGETS.includes(requested as ReindexTarget)) {
+  if (requested !== 'all' && !ALL_TARGETS.includes(requested as ES_INDICES)) {
     throw new Error(`--index (-i) must be one of: all, ${ALL_TARGETS.join(', ')}`);
   }
 
-  const targets = requested === 'all' ? ALL_TARGETS : [requested as ReindexTarget];
+  const targets = requested === 'all' ? ALL_TARGETS : [requested as ES_INDICES];
 
   return { targets, recreate: Boolean(values.recreate) };
 }

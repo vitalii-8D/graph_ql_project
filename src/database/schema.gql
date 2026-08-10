@@ -31,11 +31,6 @@ type CategoryEntity {
   posts: [PostEntity!]!
 }
 
-type CategoryFacet {
-  count: Int!
-  name: String!
-}
-
 type ChatMessageEntity {
   createdAt: DateTime!
   id: ID!
@@ -320,7 +315,6 @@ input PostMetadataInput {
 }
 
 type PostSearchResult {
-  facets: [CategoryFacet!]!
   items: [PostEntity!]!
   nextCursor: String
 }
@@ -385,17 +379,8 @@ input SearchPostsInput {
   createdAt: DateRangeInput
   cursor: String
   limit: Int = 10
-  mode: SearchPostsQueryMode = SIMPLE
   query: String
   readingTime: ReadingTimeRangeInput
-}
-
-"""
-Whether the free-text query is a plain weighted search or raw Elasticsearch query_string syntax
-"""
-enum SearchPostsQueryMode {
-  QUERY_STRING
-  SIMPLE
 }
 
 input SearchUsersInput {

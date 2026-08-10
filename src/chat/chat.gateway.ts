@@ -20,7 +20,7 @@ import type { AuthenticatedSocket } from './types/common';
 import { AuthService } from '../auth/auth.service';
 import type { JwtPayload } from '../auth/types/common';
 import { UserRole } from '../users/enums';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../users/services/users.service';
 import { config } from '../constants/config';
 
 @WebSocketGateway({

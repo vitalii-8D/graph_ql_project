@@ -15,8 +15,6 @@ export const commentsMapping: estypes.MappingTypeMapping = {
     id: { type: 'long' },
     postId: { type: 'keyword' },
     authorId: { type: 'keyword' },
-    // Deliberately no `.keyword` sub-field: significant_terms (admin analytics) needs the
-    // analyzed tokens, not exact-match strings.
     content: { type: 'text' },
     rating: { type: 'integer' },
     createdAt: { type: 'date' },

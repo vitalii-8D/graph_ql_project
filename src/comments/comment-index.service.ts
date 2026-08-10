@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { computeDocHash } from '../elasticsearch/hash.util';
+import { ElasticsearchService } from '../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../elasticsearch/enums/indices';
+import { computeDocHash } from '../elasticsearch/utils/hash.util';
 import { CommentSearchDocument } from '../elasticsearch/mappings/comments.mapping';
 import { CommentEntity } from './entities/comment.entity';
 
@@ -24,10 +24,10 @@ export class CommentIndexService {
   }
 
   async indexComment(comment: CommentEntity): Promise<void> {
-    await this.elasticsearchService.indexDocument(ES_INDICES.comments, comment.id, this.toDocument(comment));
+    await this.elasticsearchService.indexDocument(ES_INDICES.Comments, comment.id, this.toDocument(comment));
   }
 
   async deleteComment(commentId: number): Promise<void> {
-    await this.elasticsearchService.deleteDocument(ES_INDICES.comments, commentId);
+    await this.elasticsearchService.deleteDocument(ES_INDICES.Comments, commentId);
   }
 }

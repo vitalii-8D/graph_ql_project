@@ -1,9 +1,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { PostsService } from './posts.service';
+import { PostsService } from './services/posts.service';
 import { PostsResolver } from './posts.resolver';
-import { PostIndexService } from './post-index.service';
+import { PostIndexService } from './services/post-index.service';
 import { PostEntity } from './entities/post.entity';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { UserEntity } from '../users/entities/user.entity';

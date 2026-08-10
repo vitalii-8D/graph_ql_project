@@ -18,9 +18,9 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../users/enums';
 import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../users/services/users.service';
 import { PostEntity } from '../posts/entities/post.entity';
-import { PostsService } from '../posts/posts.service';
+import { PostsService } from '../posts/services/posts.service';
 import type { AuthenticatedUser } from '../auth/types/common';
 
 registerEnumType(CommentPeriodGranularity, {

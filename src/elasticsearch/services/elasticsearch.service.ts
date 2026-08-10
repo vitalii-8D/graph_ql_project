@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Client, estypes } from '@elastic/elasticsearch';
 
-import { config } from '../constants/config';
+import { config } from '../../constants/config';
 
 @Injectable()
 export class ElasticsearchService implements OnModuleInit {
@@ -13,7 +13,9 @@ export class ElasticsearchService implements OnModuleInit {
     try {
       await this.client.ping();
     } catch {
-      this.logger.warn(`Elasticsearch is unreachable at ${config.elasticsearch.node} — search/analytics will error until it comes up.`);
+      this.logger.warn(
+        `Elasticsearch is unreachable at ${config.elasticsearch.node} — search/analytics will error until it comes up.`,
+      );
     }
   }
 
@@ -64,7 +66,10 @@ export class ElasticsearchService implements OnModuleInit {
   }
 
   async bulk(operations: object[]): Promise<void> {
-    if (operations.length === 0) return;
+    if (operations.length === 0) {
+      return;
+    }
+
     const response = await this.client.bulk({ operations });
     if (response.errors) {
       const failedItems = response.items.filter((item) => Object.values(item)[0]?.error);

@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 
-import { ElasticsearchService } from './elasticsearch.service';
-import { IndexSetupService } from './index-setup.service';
+import { ElasticsearchService } from './services/elasticsearch.service';
+import { IndexSetupService } from './services/index-setup.service';
 
 @Global()
 @Module({

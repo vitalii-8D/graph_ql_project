@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { ElasticsearchService } from '../elasticsearch/elasticsearch.service';
-import { ES_INDICES } from '../elasticsearch/indices';
-import { computeDocHash } from '../elasticsearch/hash.util';
-import { PostSearchDocument } from '../elasticsearch/mappings/posts.mapping';
-import { PostEntity } from './entities/post.entity';
+import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
+import { ES_INDICES } from '../../elasticsearch/enums/indices';
+import { computeDocHash } from '../../elasticsearch/utils/hash.util';
+import { PostSearchDocument } from '../../elasticsearch/mappings/posts.mapping';
+import { PostEntity } from '../entities/post.entity';
 
 @Injectable()
 export class PostIndexService {
@@ -50,10 +50,11 @@ export class PostIndexService {
       this.logger.warn(`reindexOne called for missing post ${postId}`);
       return;
     }
-    await this.elasticsearchService.indexDocument(ES_INDICES.posts, post.id, this.toDocument(post));
+
+    await this.elasticsearchService.indexDocument(ES_INDICES.Posts, post.id, this.toDocument(post));
   }
 
   async deletePost(postId: number): Promise<void> {
-    await this.elasticsearchService.deleteDocument(ES_INDICES.posts, postId);
+    await this.elasticsearchService.deleteDocument(ES_INDICES.Posts, postId);
   }
 }

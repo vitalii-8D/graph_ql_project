@@ -2,21 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { UserEntity } from '../users/entities/user.entity';
-import { PostEntity } from '../posts/entities/post.entity';
-import { CommentEntity } from '../comments/entities/comment.entity';
-import { UserIndexService } from '../users/user-index.service';
-import { PostIndexService } from '../posts/post-index.service';
-import { CommentIndexService } from '../comments/comment-index.service';
+import { UserEntity } from '../../users/entities/user.entity';
+import { PostEntity } from '../../posts/entities/post.entity';
+import { CommentEntity } from '../../comments/entities/comment.entity';
+import { UserIndexService } from '../../users/services/user-index.service';
+import { PostIndexService } from '../../posts/services/post-index.service';
+import { CommentIndexService } from '../../comments/comment-index.service';
 import { ElasticsearchService } from './elasticsearch.service';
-import { ES_INDICES } from './indices';
-import { usersMapping } from './mappings/users.mapping';
-import { postsMapping } from './mappings/posts.mapping';
-import { commentsMapping } from './mappings/comments.mapping';
+import { ES_INDICES } from '../enums/indices';
+import { usersMapping } from '../mappings/users.mapping';
+import { postsMapping } from '../mappings/posts.mapping';
+import { commentsMapping } from '../mappings/comments.mapping';
 
 const BATCH_SIZE = 500;
-
-export type ReindexTarget = 'users' | 'posts' | 'comments';
 
 interface ReindexOptions {
   recreate?: boolean;
@@ -36,13 +34,13 @@ export class ReindexService {
     private readonly commentIndexService: CommentIndexService,
   ) {}
 
-  async run(targets: ReindexTarget[], options: ReindexOptions = {}): Promise<void> {
+  async run(targets: ES_INDICES[], options: ReindexOptions = {}): Promise<void> {
     for (const target of targets) {
       await this.reindexTarget(target, options);
     }
   }
 
-  private async reindexTarget(target: ReindexTarget, options: ReindexOptions): Promise<void> {
+  private async reindexTarget(target: ES_INDICES, options: ReindexOptions): Promise<void> {
     const { index, mapping } = this.indexFor(target);
 
     if (options.recreate) {
@@ -56,10 +54,17 @@ export class ReindexService {
 
     for (;;) {
       const batch = await this.fetchBatch(target, skip, BATCH_SIZE);
-      if (batch.length === 0) break;
+      if (batch.length === 0) {
+        break;
+      }
 
       const docs = batch.map((entity) => this.toDoc(target, entity));
-      const existingHashes = options.recreate ? new Map<string, string>() : await this.fetchExistingHashes(index, docs.map((d) => String(d.id)));
+      const existingHashes = options.recreate
+        ? new Map<string, string>()
+        : await this.fetchExistingHashes(
+            index,
+            docs.map((d) => String(d.id)),
+          );
 
       const operations: object[] = [];
       for (const doc of docs) {
@@ -68,6 +73,7 @@ export class ReindexService {
           skippedUnchanged += 1;
           continue;
         }
+
         operations.push({ index: { _index: index, _id: String(doc.id) } });
         operations.push(doc);
         indexed += 1;
@@ -81,41 +87,47 @@ export class ReindexService {
     this.logger.log(`[${target}] indexed=${indexed} skipped(unchanged)=${skippedUnchanged}`);
   }
 
-  private indexFor(target: ReindexTarget) {
+  private indexFor(target: ES_INDICES) {
     switch (target) {
-      case 'users':
-        return { index: ES_INDICES.users, mapping: usersMapping };
-      case 'posts':
-        return { index: ES_INDICES.posts, mapping: postsMapping };
-      case 'comments':
-        return { index: ES_INDICES.comments, mapping: commentsMapping };
+      case ES_INDICES.Users:
+        return { index: ES_INDICES.Users, mapping: usersMapping };
+      case ES_INDICES.Posts:
+        return { index: ES_INDICES.Posts, mapping: postsMapping };
+      case ES_INDICES.Comments:
+        return { index: ES_INDICES.Comments, mapping: commentsMapping };
     }
   }
 
-  private async fetchBatch(target: ReindexTarget, skip: number, take: number): Promise<(UserEntity | PostEntity | CommentEntity)[]> {
+  private async fetchBatch(
+    target: ES_INDICES,
+    skip: number,
+    take: number,
+  ): Promise<(UserEntity | PostEntity | CommentEntity)[]> {
     switch (target) {
-      case 'users':
+      case ES_INDICES.Users:
         return this.usersRepository.find({ skip, take, order: { id: 'ASC' } });
-      case 'posts':
+      case ES_INDICES.Posts:
         return this.postsRepository.find({ skip, take, order: { id: 'ASC' }, relations: ['author', 'categories'] });
-      case 'comments':
+      case ES_INDICES.Comments:
         return this.commentsRepository.find({ skip, take, order: { id: 'ASC' } });
     }
   }
 
-  private toDoc(target: ReindexTarget, entity: UserEntity | PostEntity | CommentEntity): { id: number; _hash: string } {
+  private toDoc(target: ES_INDICES, entity: UserEntity | PostEntity | CommentEntity): { id: number; _hash: string } {
     switch (target) {
-      case 'users':
+      case ES_INDICES.Users:
         return this.userIndexService.toDocument(entity as UserEntity);
-      case 'posts':
+      case ES_INDICES.Posts:
         return this.postIndexService.toDocument(entity as PostEntity);
-      case 'comments':
+      case ES_INDICES.Comments:
         return this.commentIndexService.toDocument(entity as CommentEntity);
     }
   }
 
   private async fetchExistingHashes(index: string, ids: string[]): Promise<Map<string, string>> {
-    if (ids.length === 0) return new Map();
+    if (ids.length === 0) {
+      return new Map();
+    }
 
     try {
       const response = await this.elasticsearchService.client.mget<{ _hash: string }>({
@@ -129,6 +141,7 @@ export class ReindexService {
           hashes.set(doc._id, doc._source._hash);
         }
       }
+
       return hashes;
     } catch {
       return new Map();

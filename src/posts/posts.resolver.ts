@@ -1,7 +1,7 @@
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
-import { PostsService } from './posts.service';
+import { PostsService } from './services/posts.service';
 import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
@@ -10,7 +10,7 @@ import { PostSearchResult } from './dto/post-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../users/services/users.service';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../open-graph/services/open-graph.service';
@@ -48,7 +48,7 @@ export class PostsResolver {
 
   @Query(() => PostSearchResult, { name: 'searchPosts' })
   searchPosts(@Args('input') input: SearchPostsInput): Promise<PostSearchResult> {
-    return this.postsService.searchViaElasticsearch(input);
+    return this.postsService.search(input);
   }
 
   @UseGuards(GqlAuthGuard)

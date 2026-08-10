@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 
 import type { AuthenticatedUser } from '../auth/types/common';
 import { PostEntity } from '../posts/entities/post.entity';
-import { PostsService } from '../posts/posts.service';
+import { PostsService } from '../posts/services/posts.service';
 import { UserRole } from '../users/enums';
 import { CreateCommentInput } from './dto/create-comment.input';
 import { UpdateCommentInput } from './dto/update-comment.input';
