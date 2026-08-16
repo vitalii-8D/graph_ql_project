@@ -27,6 +27,10 @@ const REQUIRED_ENV_VARS = [
   'AWS_SECRET_ACCESS_KEY',
   'AWS_S3_BUCKET_NAME',
   'AWS_S3_UPLOAD_URL_EXPIRES_IN',
+  // stripe
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'STRIPE_PUBLISHABLE_KEY',
 ] as const;
 
 export function validateEnv(): void {
@@ -69,5 +73,10 @@ export const config = {
   },
   elasticsearch: {
     node: process.env.ELASTICSEARCH_NODE ?? 'http://localhost:9200',
+  },
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY!,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+    publishableKey: process.env.STRIPE_PUBLISHABLE_KEY!,
   },
 };

@@ -25,6 +25,7 @@ export class PostIndexService {
       content: post.content,
       slug: post.slug,
       status: post.status,
+      paymentStatus: post.paymentStatus,
       viewCount: post.viewCount,
       readingTimeMinutes: post.readingTimeMinutes,
       commentCount: post.commentCount,

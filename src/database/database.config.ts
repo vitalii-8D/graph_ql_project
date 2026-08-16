@@ -9,6 +9,7 @@ import { CommentEntity } from '../comments/entities/comment.entity';
 import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
 import { PostImageEntity } from '../post-images/entities/post-image.entity';
 import { UserAvatarEntity } from '../user-avatars/entities/user-avatar.entity';
+import { PaymentTransactionEntity } from '../payments/entities/payment-transaction.entity';
 import { config } from '../constants/config';
 
 export const databaseConfig: DataSourceOptions = {
@@ -28,6 +29,7 @@ export const databaseConfig: DataSourceOptions = {
     ChatMessageEntity,
     PostImageEntity,
     UserAvatarEntity,
+    PaymentTransactionEntity,
   ],
   synchronize: false,
   logging: false,

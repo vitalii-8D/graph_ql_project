@@ -1,6 +1,6 @@
 import type { estypes } from '@elastic/elasticsearch';
 
-import { type PostStatus } from '../../posts/enums';
+import { type PostStatus, type PostPaymentStatus } from '../../posts/enums';
 
 export interface PostSearchDocument {
   id: number;
@@ -8,6 +8,7 @@ export interface PostSearchDocument {
   content: string;
   slug: string;
   status: PostStatus;
+  paymentStatus: PostPaymentStatus;
   viewCount: number;
   readingTimeMinutes: number;
   commentCount: number;
@@ -26,6 +27,7 @@ export const postsMapping: estypes.MappingTypeMapping = {
     content: { type: 'text' },
     slug: { type: 'keyword' },
     status: { type: 'keyword' },
+    paymentStatus: { type: 'keyword' },
     viewCount: { type: 'integer' },
     readingTimeMinutes: { type: 'integer' },
     commentCount: { type: 'integer' },

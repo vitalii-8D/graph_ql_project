@@ -23,9 +23,10 @@ import { SearchPostsInput } from '../dto/search-posts.input';
 import { PostSearchResult } from '../dto/post-search-result.type';
 import { PostEntity } from '../entities/post.entity';
 import { PostIndexService } from './post-index.service';
-import { PostStatus } from '../enums';
+import { PostStatus, PostPaymentStatus } from '../enums';
 
 const AVERAGE_READING_SPEED_WPM = 200;
+const CATEGORY_FACET_SIZE = 50;
 
 @Injectable()
 export class PostsService {
@@ -104,7 +105,10 @@ export class PostsService {
 
   async findAll(): Promise<PostEntity[]> {
     return await this.postsRepository.find({
-      where: { status: PostStatus.PUBLISHED },
+      where: [
+        { status: PostStatus.PUBLISHED, paymentStatus: PostPaymentStatus.SUCCEEDED },
+        { status: PostStatus.PUBLISHED, paymentStatus: PostPaymentStatus.NOT_REQUIRED },
+      ],
       order: { createdAt: OrderDirection.DESC },
     });
   }
@@ -134,6 +138,12 @@ export class PostsService {
 
     if (user.role !== UserRole.ADMIN && post.authorId !== user.id) {
       throw new ForbiddenException('You can only update your own posts');
+    }
+
+    if (updateData.status === PostStatus.PUBLISHED && !post.hasBeenPublished) {
+      throw new BadRequestException(
+        'This post requires a one-time payment before it can be published for the first time — use the publishPost mutation.',
+      );
     }
 
     Object.assign(post, updateData);
@@ -229,7 +239,10 @@ export class PostsService {
       must.push({ match_all: {} });
     }
 
-    const filter: estypes.QueryDslQueryContainer[] = [{ term: { status: PostStatus.PUBLISHED } }];
+    const filter: estypes.QueryDslQueryContainer[] = [
+      { term: { status: PostStatus.PUBLISHED } },
+      { terms: { paymentStatus: [PostPaymentStatus.SUCCEEDED, PostPaymentStatus.NOT_REQUIRED] } },
+    ];
     if (input.categories && input.categories.length > 0) {
       filter.push(...input.categories.map((category) => ({ term: { 'categories.name': category } })));
     }

@@ -206,10 +206,13 @@ type Mutation {
   generateUploadUrl(input: GenerateUploadUrlInput!): PresignedUploadPayload!
   incrementPostViewCount(id: ID!): PostEntity!
   login(loginInput: LoginInput!): AuthResponse!
+  publishPost(postId: ID!): PublishPostResult!
+  refundPayment(transactionId: ID!): PaymentTransactionEntity!
   removeComment(id: ID!): CommentEntity!
   removeOpenGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   removePost(id: ID!): PostEntity!
   removeUser(id: ID!): UserEntity!
+  retryPostPayment(postId: ID!): PublishPostResult!
   startDirectMessage(userId: ID!): ChatRoomEntity!
   updateAvatar(input: UserAvatarInput!): UserAvatarEntity!
   updateComment(updateCommentInput: UpdateCommentInput!): CommentEntity!
@@ -266,6 +269,32 @@ type OpenGraphMetadataEntity {
   videoWidth: Float
 }
 
+type PaymentTransactionEntity {
+  amount: Int!
+  createdAt: DateTime!
+  currency: String!
+  failureReason: String
+  id: ID!
+  post: PostEntity!
+  postId: ID!
+  refundedAt: DateTime
+  status: PaymentTransactionStatus!
+  stripeCheckoutSessionId: String
+  stripePaymentIntentId: String
+  stripeRefundId: String
+  updatedAt: DateTime!
+  user: UserEntity!
+  userId: ID!
+}
+
+"""Payment transaction lifecycle status"""
+enum PaymentTransactionStatus {
+  FAILED
+  PENDING
+  REFUNDED
+  SUCCEEDED
+}
+
 type PostEntity {
   author: UserEntity!
   authorId: ID!
@@ -275,8 +304,10 @@ type PostEntity {
   comments: [CommentEntity!]
   content: String!
   createdAt: DateTime!
+  hasBeenPublished: Boolean!
   id: ID!
   openGraphMetadata: OpenGraphMetadataEntity
+  paymentStatus: PostPaymentStatus!
   postImage: PostImageEntity
   readingTimeMinutes: Int!
   slug: String!
@@ -314,6 +345,15 @@ input PostMetadataInput {
   tags: [String!]
 }
 
+"""Payment gate status for publishing a post"""
+enum PostPaymentStatus {
+  FAILED
+  NOT_REQUIRED
+  PENDING
+  REFUNDED
+  SUCCEEDED
+}
+
 type PostSearchResult {
   items: [PostEntity!]!
   nextCursor: String
@@ -332,6 +372,12 @@ type PresignedUploadPayload {
   uploadUrl: String!
 }
 
+type PublishPostResult {
+  checkoutSessionId: String
+  checkoutUrl: String
+  post: PostEntity
+}
+
 type Query {
   analyticsDashboard(input: AnalyticsDashboardInput): AnalyticsDashboard!
   categories: [CategoryEntity!]!
@@ -347,6 +393,7 @@ type Query {
   generateShareLinks(postId: ID, url: String!): ShareLinks!
   me: UserEntity!
   myDirectMessageRooms: [ChatRoomEntity!]!
+  myTransactions: [PaymentTransactionEntity!]!
   openGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   openGraphMetadataByPost(postId: ID!): OpenGraphMetadataEntity
   openGraphMetadataList: [OpenGraphMetadataEntity!]!
@@ -354,6 +401,7 @@ type Query {
   posts: [PostEntity!]!
   searchPosts(input: SearchPostsInput!): PostSearchResult!
   searchUsers(input: SearchUsersInput!): UserSearchResult!
+  transactionsForPost(postId: ID!): [PaymentTransactionEntity!]!
   user(id: ID!): UserEntity!
   users: [UserEntity!]!
 }

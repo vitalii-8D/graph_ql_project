@@ -12,11 +12,22 @@ import { CommentEntity } from '../../comments/entities/comment.entity';
 import { OpenGraphMetadataEntity, OgType } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PasswordUtil } from '../../utils/password.util';
 import { formatSlug } from '../../utils/format-slug';
+import { PaymentTransactionEntity } from '../../payments/entities/payment-transaction.entity';
+import { PaymentTransactionStatus } from '../../payments/enums';
+import { POST_PUBLISH_PRICE_CENTS, POST_PUBLISH_CURRENCY } from '../../payments/constants';
+import { PostPaymentStatus } from '../../posts/enums';
 
 const MOCK_PASSWORD = 'Password!1';
 const AVERAGE_READING_SPEED_WPM = 200;
 const ADMIN_USER_PROBABILITY = 0.1;
 const MAX_COMMENTS_PER_POST = 20;
+const MAX_REFUNDED_POSTS = 2;
+const FAILURE_REASONS = [
+  'Your card was declined.',
+  'Your card has insufficient funds.',
+  'Your card has expired.',
+  'An error occurred while processing your card. Try again in a little bit.',
+];
 
 const BASE_CITY = 'Івано-Франківськ';
 const BASE_LOCATION = { latitude: 48.9224763, longitude: 24.710334 };
@@ -49,6 +60,8 @@ export class SeederService {
     private openGraphRepository: Repository<OpenGraphMetadataEntity>,
     @InjectRepository(CommentEntity)
     private commentRepository: Repository<CommentEntity>,
+    @InjectRepository(PaymentTransactionEntity)
+    private paymentTransactionRepository: Repository<PaymentTransactionEntity>,
     private readonly passwordUtil: PasswordUtil,
   ) {}
 
@@ -62,6 +75,8 @@ export class SeederService {
     const posts = await this.createPosts(postsCount, users, categories);
 
     await this.createComments(posts, users);
+
+    await this.createPaymentTransactions(posts);
 
     this.logBreakdown(users, posts);
 
@@ -247,6 +262,99 @@ export class SeederService {
     }
 
     console.log(`Created ${comments.length} comments`);
+  }
+
+  private async createPaymentTransactions(posts: PostEntity[]): Promise<void> {
+    console.log('Creating payment transactions...');
+
+    const transactions: PaymentTransactionEntity[] = [];
+    const publishedPosts = posts.filter((post) => post.status === PostStatus.PUBLISHED);
+    const draftPosts = posts.filter((post) => post.status === PostStatus.DRAFT);
+
+    // Every published post got there through a successful one-time payment.
+    for (const post of publishedPosts) {
+      transactions.push(
+        this.paymentTransactionRepository.create({
+          userId: post.author.id,
+          postId: post.id,
+          stripeCheckoutSessionId: `cs_fake_${faker.string.alphanumeric(24)}`,
+          stripePaymentIntentId: `pi_fake_${faker.string.alphanumeric(24)}`,
+          amount: POST_PUBLISH_PRICE_CENTS,
+          currency: POST_PUBLISH_CURRENCY,
+          status: PaymentTransactionStatus.SUCCEEDED,
+        }),
+      );
+      post.hasBeenPublished = true;
+      post.paymentStatus = PostPaymentStatus.SUCCEEDED;
+    }
+
+    // A slice of drafts represents a first-publish attempt that's still pending or failed —
+    // exercises the "retry payment" UI path.
+    const draftSample = faker.helpers.arrayElements(draftPosts, { min: 0, max: draftPosts.length });
+    for (const post of draftSample) {
+      const outcome = faker.helpers.weightedArrayElement([
+        { weight: 6, value: PaymentTransactionStatus.FAILED },
+        { weight: 4, value: PaymentTransactionStatus.PENDING },
+      ]);
+
+      transactions.push(
+        this.paymentTransactionRepository.create({
+          userId: post.author.id,
+          postId: post.id,
+          stripeCheckoutSessionId: `cs_fake_${faker.string.alphanumeric(24)}`,
+          stripePaymentIntentId: `pi_fake_${faker.string.alphanumeric(24)}`,
+          amount: POST_PUBLISH_PRICE_CENTS,
+          currency: POST_PUBLISH_CURRENCY,
+          status: outcome,
+          failureReason:
+            outcome === PaymentTransactionStatus.FAILED ? faker.helpers.arrayElement(FAILURE_REASONS) : undefined,
+        }),
+      );
+      post.paymentStatus =
+        outcome === PaymentTransactionStatus.FAILED ? PostPaymentStatus.FAILED : PostPaymentStatus.PENDING;
+    }
+
+    // A couple of previously-published posts get refunded, reverting them back to unpublished —
+    // exercises the profile refund history.
+    const refundCandidates = faker.helpers.arrayElements(publishedPosts, {
+      min: 0,
+      max: Math.min(MAX_REFUNDED_POSTS, publishedPosts.length),
+    });
+    for (const post of refundCandidates) {
+      const originalTransaction = transactions.find((transaction) => transaction.postId === post.id);
+      if (!originalTransaction) continue;
+
+      originalTransaction.status = PaymentTransactionStatus.REFUNDED;
+      originalTransaction.stripeRefundId = `re_fake_${faker.string.alphanumeric(24)}`;
+      originalTransaction.refundedAt = faker.date.recent({ days: 5 });
+
+      post.status = PostStatus.DRAFT;
+      post.hasBeenPublished = false;
+      post.paymentStatus = PostPaymentStatus.REFUNDED;
+    }
+
+    const savedTransactions = await this.paymentTransactionRepository.save(transactions);
+
+    // Targeted column updates rather than a bulk `.save()` of full entities — posts carry a
+    // cascading `categories` relation that a bulk array save would otherwise needlessly re-write.
+    const touchedPosts = [...new Set([...publishedPosts, ...draftSample])];
+    for (const post of touchedPosts) {
+      await this.postRepository.update(
+        { id: post.id },
+        { status: post.status, hasBeenPublished: post.hasBeenPublished, paymentStatus: post.paymentStatus },
+      );
+    }
+
+    const countByStatus = (status: PaymentTransactionStatus) =>
+      savedTransactions.filter((transaction) => transaction.status === status).length;
+
+    console.log(
+      `Created ${savedTransactions.length} payment transactions ` +
+        `(${countByStatus(PaymentTransactionStatus.SUCCEEDED)} succeeded, ` +
+        `${countByStatus(PaymentTransactionStatus.FAILED)} failed, ` +
+        `${countByStatus(PaymentTransactionStatus.PENDING)} pending, ` +
+        `${countByStatus(PaymentTransactionStatus.REFUNDED)} refunded)`,
+    );
   }
 
   private buildFakeOpenGraphMetadata(post: PostEntity): Partial<OpenGraphMetadataEntity> {

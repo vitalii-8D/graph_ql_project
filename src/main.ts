@@ -7,7 +7,7 @@ import { config, validateEnv } from './constants/config';
 async function bootstrap() {
   validateEnv();
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   app.enableCors();
 

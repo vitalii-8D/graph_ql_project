@@ -18,11 +18,16 @@ import { CategoryEntity } from '../../categories/entities/category.entity';
 import { CommentEntity } from '../../comments/entities/comment.entity';
 import { OpenGraphMetadataEntity } from '../../open-graph/entities/open-graph-metadata.entity';
 import { PostImageEntity } from '../../post-images/entities/post-image.entity';
-import { PostStatus } from '../enums';
+import { PostStatus, PostPaymentStatus } from '../enums';
 
 registerEnumType(PostStatus, {
   name: 'PostStatus',
   description: 'Post lifecycle status',
+});
+
+registerEnumType(PostPaymentStatus, {
+  name: 'PostPaymentStatus',
+  description: 'Payment gate status for publishing a post',
 });
 
 @ObjectType()
@@ -66,6 +71,18 @@ export class PostEntity {
   @Field(() => Float, { nullable: true })
   @Column({ name: 'average_rating', type: 'float', nullable: true })
   averageRating?: number | null;
+
+  @Field()
+  @Column({ name: 'has_been_published', default: false })
+  hasBeenPublished: boolean;
+
+  @Field(() => PostPaymentStatus)
+  @Column({
+    name: 'payment_status',
+    type: 'text',
+    default: PostPaymentStatus.NOT_REQUIRED,
+  })
+  paymentStatus: PostPaymentStatus;
 
   @Field(() => ID)
   @Column({ name: 'author_id' })
