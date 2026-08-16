@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { ChatRoomEntity } from './entities/chat-room.entity';
 import { ChatMessageEntity } from './entities/chat-message.entity';
+import { ChatAttachmentEntity } from './entities/chat-attachment.entity';
 import { CreateRoomInput } from './dto/create-room.input';
 import { SendMessageInput } from './dto/send-message.input';
 import { UsersService } from '../users/services/users.service';
@@ -15,6 +16,8 @@ export class ChatService {
     private chatRoomRepository: Repository<ChatRoomEntity>,
     @InjectRepository(ChatMessageEntity)
     private chatMessageRepository: Repository<ChatMessageEntity>,
+    @InjectRepository(ChatAttachmentEntity)
+    private chatAttachmentRepository: Repository<ChatAttachmentEntity>,
     private usersService: UsersService,
   ) {}
 
@@ -115,20 +118,31 @@ export class ChatService {
   }
 
   async saveMessage(userId: number, sendMessageInput: SendMessageInput): Promise<ChatMessageEntity> {
-    const { roomId, message } = sendMessageInput;
+    const { roomId, message, attachments } = sendMessageInput;
+
+    if (!message?.trim() && !attachments?.length) {
+      throw new BadRequestException('A message must contain text or at least one attachment');
+    }
 
     await this.getRoomForUser(roomId, userId);
 
     const chatMessage = this.chatMessageRepository.create({
-      message,
+      message: message ?? '',
       userId,
       roomId,
     });
     const saved = await this.chatMessageRepository.save(chatMessage);
 
+    if (attachments?.length) {
+      const attachmentEntities = attachments.map((attachment) =>
+        this.chatAttachmentRepository.create({ ...attachment, messageId: saved.id }),
+      );
+      await this.chatAttachmentRepository.save(attachmentEntities);
+    }
+
     return this.chatMessageRepository.findOneOrFail({
       where: { id: saved.id },
-      relations: ['user'],
+      relations: ['user', 'attachments'],
     });
   }
 

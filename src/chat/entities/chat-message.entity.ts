@@ -1,7 +1,8 @@
 import { Field, ID, ObjectType } from '@nestjs/graphql';
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, JoinColumn } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 import { ChatRoomEntity } from './chat-room.entity';
+import { ChatAttachmentEntity } from './chat-attachment.entity';
 
 @ObjectType()
 @Entity('chat_messages')
@@ -35,4 +36,8 @@ export class ChatMessageEntity {
   @Field()
   @CreateDateColumn()
   createdAt: Date;
+
+  @Field(() => [ChatAttachmentEntity])
+  @OneToMany(() => ChatAttachmentEntity, (attachment) => attachment.message, { eager: true })
+  attachments: ChatAttachmentEntity[];
 }

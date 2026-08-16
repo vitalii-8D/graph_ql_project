@@ -31,7 +31,19 @@ type CategoryEntity {
   posts: [PostEntity!]!
 }
 
+type ChatAttachmentEntity {
+  createdAt: DateTime!
+  id: ID!
+  key: String!
+  messageId: ID!
+  mimeType: String!
+  originalFileName: String!
+  sizeBytes: Int!
+  url: String!
+}
+
 type ChatMessageEntity {
+  attachments: [ChatAttachmentEntity!]!
   createdAt: DateTime!
   id: ID!
   message: String!
@@ -532,6 +544,7 @@ input UpdateUserInput {
 
 """Purpose of a presigned upload, used to determine the S3 key prefix"""
 enum UploadPurpose {
+  CHAT_ATTACHMENT
   POST_IMAGE
   USER_AVATAR
 }

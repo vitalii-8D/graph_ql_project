@@ -3,6 +3,7 @@ import { type DataSourceOptions } from 'typeorm';
 import { CategoryEntity } from '../categories/entities/category.entity';
 import { ChatMessageEntity } from '../chat/entities/chat-message.entity';
 import { ChatRoomEntity } from '../chat/entities/chat-room.entity';
+import { ChatAttachmentEntity } from '../chat/entities/chat-attachment.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { PostEntity } from '../posts/entities/post.entity';
 import { CommentEntity } from '../comments/entities/comment.entity';
@@ -27,6 +28,7 @@ export const databaseConfig: DataSourceOptions = {
     OpenGraphMetadataEntity,
     ChatRoomEntity,
     ChatMessageEntity,
+    ChatAttachmentEntity,
     PostImageEntity,
     UserAvatarEntity,
     PaymentTransactionEntity,

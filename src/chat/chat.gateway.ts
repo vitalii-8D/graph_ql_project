@@ -193,6 +193,32 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     return true;
   }
 
+  // IDs are stringified to match the GraphQL `ID` scalar's serialization, which is what
+  // the initial loader-fetched messages use - keeps `message.userId === currentUserId`
+  // comparisons (e.g. own-message styling) consistent between the two data sources.
+  private serializeMessage(message: ChatMessageEntity) {
+    return {
+      id: String(message.id),
+      message: message.message,
+      userId: String(message.userId),
+      user: {
+        id: String(message.user.id),
+        name: message.user.name,
+        email: message.user.email,
+      },
+      roomId: String(message.roomId),
+      createdAt: message.createdAt,
+      attachments: (message.attachments ?? []).map((attachment) => ({
+        id: String(attachment.id),
+        key: attachment.key,
+        url: attachment.url,
+        originalFileName: attachment.originalFileName,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.sizeBytes,
+      })),
+    };
+  }
+
   private extractTokenFromHandshake(client: Socket): string | null {
     const authHeader = client.handshake.headers.authorization;
     if (!authHeader) {
@@ -214,21 +240,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       await client.join(roomName);
 
       const roomMessages = await this.chatService.getRoomMessages(data.roomId, client.data.user.id);
-      // IDs are stringified to match the GraphQL `ID` scalar's serialization, which is what
-      // the initial loader-fetched messages use - keeps `message.userId === currentUserId`
-      // comparisons (e.g. own-message styling) consistent between the two data sources.
-      const messages = roomMessages.map((roomMessage) => ({
-        id: String(roomMessage.id),
-        message: roomMessage.message,
-        userId: String(roomMessage.userId),
-        user: {
-          id: String(roomMessage.user.id),
-          name: roomMessage.user.name,
-          email: roomMessage.user.email,
-        },
-        roomId: String(roomMessage.roomId),
-        createdAt: roomMessage.createdAt,
-      }));
+      const messages = roomMessages.map((roomMessage) => this.serializeMessage(roomMessage));
 
       // Send confirmation with callback
       client.emit(ChatSocketEvent.JoinedRoom, {
@@ -302,18 +314,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       const roomName = `room-${sendMessageInput.roomId}`;
 
       // Broadcast message to all users in the room (including sender)
-      this.server.to(roomName).emit(ChatSocketEvent.NewMessage, {
-        id: String(savedMessage.id),
-        message: savedMessage.message,
-        userId: String(savedMessage.userId),
-        user: {
-          id: String(savedMessage.user.id),
-          name: savedMessage.user.name,
-          email: savedMessage.user.email,
-        },
-        roomId: String(savedMessage.roomId),
-        createdAt: savedMessage.createdAt,
-      });
+      this.server.to(roomName).emit(ChatSocketEvent.NewMessage, this.serializeMessage(savedMessage));
 
       client.emit(ChatSocketEvent.MessageSent, {
         success: true,
@@ -364,19 +365,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         savedMessages.push(savedMessage);
 
         const roomName = `room-${roomId}`;
-        this.server.to(roomName).emit(ChatSocketEvent.NewMessage, {
-          id: String(savedMessage.id),
-          message: savedMessage.message,
-          userId: String(savedMessage.userId),
-          user: {
-            id: String(savedMessage.user.id),
-            name: savedMessage.user.name,
-            email: savedMessage.user.email,
-          },
-          roomId: String(savedMessage.roomId),
-          createdAt: savedMessage.createdAt,
-          isAdminBroadcast: true,
-        });
+        this.server
+          .to(roomName)
+          .emit(ChatSocketEvent.NewMessage, { ...this.serializeMessage(savedMessage), isAdminBroadcast: true });
       }
 
       client.emit(ChatSocketEvent.BroadcastSent, {

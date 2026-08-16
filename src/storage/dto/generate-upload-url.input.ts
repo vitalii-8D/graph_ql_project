@@ -1,8 +1,7 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsEnum, IsIn, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 import { UploadPurpose } from '../enums/common';
-import { ALLOWED_IMAGE_MIME_TYPES } from '../constants/common';
 
 @InputType()
 export class GenerateUploadUrlInput {
@@ -15,7 +14,10 @@ export class GenerateUploadUrlInput {
   @MaxLength(255)
   fileName: string;
 
+  // Allowed values depend on `purpose` (e.g. images-only vs any file) - checked in
+  // StorageResolver against ALLOWED_MIME_TYPES_BY_PURPOSE rather than statically here.
   @Field()
-  @IsIn(ALLOWED_IMAGE_MIME_TYPES)
+  @IsString()
+  @IsNotEmpty()
   contentType: string;
 }
