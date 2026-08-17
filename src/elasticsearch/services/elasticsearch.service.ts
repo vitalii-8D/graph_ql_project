@@ -19,11 +19,15 @@ export class ElasticsearchService implements OnModuleInit {
     }
   }
 
-  async ensureIndex(index: string, mappings: estypes.MappingTypeMapping): Promise<void> {
+  async ensureIndex(
+    index: string,
+    mappings: estypes.MappingTypeMapping,
+    settings?: estypes.IndicesIndexSettings,
+  ): Promise<void> {
     try {
       const exists = await this.client.indices.exists({ index });
       if (!exists) {
-        await this.client.indices.create({ index, mappings });
+        await this.client.indices.create({ index, mappings, settings });
       }
     } catch (error) {
       this.logger.warn(`Failed to ensure index "${index}": ${(error as Error).message}`);

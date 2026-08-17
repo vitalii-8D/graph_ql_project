@@ -20,11 +20,32 @@ export interface PostSearchDocument {
   _hash: string;
 }
 
+/**
+ * `content` is prose (unlike `title`, which is kept on the default standard analyzer for
+ * exact-ish ranking): stemming + English stop-words trims noise so query_string/multi_match
+ * matches "running" against "run" and doesn't score on "the"/"and".
+ */
+export const postsIndexSettings: estypes.IndicesIndexSettings = {
+  analysis: {
+    filter: {
+      content_stop: { type: 'stop', stopwords: '_english_' },
+      content_stemmer: { type: 'stemmer', language: 'english' },
+    },
+    analyzer: {
+      post_content_analyzer: {
+        type: 'custom',
+        tokenizer: 'standard',
+        filter: ['lowercase', 'content_stop', 'content_stemmer'],
+      },
+    },
+  },
+};
+
 export const postsMapping: estypes.MappingTypeMapping = {
   properties: {
     id: { type: 'long' },
     title: { type: 'text' },
-    content: { type: 'text' },
+    content: { type: 'text', analyzer: 'post_content_analyzer' },
     slug: { type: 'keyword' },
     status: { type: 'keyword' },
     paymentStatus: { type: 'keyword' },

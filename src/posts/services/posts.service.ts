@@ -19,7 +19,7 @@ import { UserRole } from '../../users/enums';
 import { sortByIds } from '../../utils/sort-by-ids';
 import { CreatePostInput } from '../dto/create-post.input';
 import { UpdatePostInput } from '../dto/update-post.input';
-import { SearchPostsInput } from '../dto/search-posts.input';
+import { SearchPostsInput, SearchPostsAdvancedInput } from '../dto/search-posts.input';
 import { PostSearchResult } from '../dto/post-search-result.type';
 import { PostEntity } from '../entities/post.entity';
 import { PostIndexService } from './post-index.service';
@@ -224,21 +224,62 @@ export class PostsService {
     const limit = input.limit ?? 10;
     const hasQuery = Boolean(input.query);
 
-    const must: estypes.QueryDslQueryContainer[] = [];
-    if (hasQuery) {
-      must.push({
-        multi_match: {
-          query: input.query!,
-          fields: ['title^3', 'content^2', 'author.name^1'],
-          type: 'best_fields',
-          fuzziness: 'AUTO',
-          tie_breaker: 0.3,
-        },
-      });
-    } else {
-      must.push({ match_all: {} });
-    }
+    const must: estypes.QueryDslQueryContainer[] = [
+      hasQuery
+        ? {
+            multi_match: {
+              query: input.query!,
+              fields: ['title^3', 'content^2', 'author.name^1'],
+              type: 'best_fields',
+              fuzziness: 'AUTO',
+              tie_breaker: 0.3,
+            },
+          }
+        : { match_all: {} },
+    ];
 
+    const query: estypes.QueryDslQueryContainer = { bool: { must, filter: this.buildVisibilityFilters(input) } };
+
+    const sort: estypes.SortCombinations[] = hasQuery
+      ? [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }]
+      : [{ createdAt: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
+
+    return this.executeSearch(query, sort, limit, input.cursor);
+  }
+
+  /**
+   * Lucene-syntax search for power users/admin tooling: `query_string` supports field-scoped
+   * terms, boolean operators, wildcards, and phrases in one string, unlike the fuzzy
+   * `multi_match` used by `search`. `content` is analyzed with `post_content_analyzer`
+   * (stemming + English stop-words, see posts.mapping.ts) so terms like "running" still
+   * match "run".
+   */
+  async searchAdvanced(input: SearchPostsAdvancedInput): Promise<PostSearchResult> {
+    const limit = input.limit ?? 10;
+
+    const must: estypes.QueryDslQueryContainer[] = [
+      {
+        query_string: {
+          query: input.queryString,
+          fields: ['title^3', 'content^2', 'author.name'],
+          default_operator: 'AND',
+          fuzziness: 'AUTO',
+          lenient: true,
+        },
+      },
+    ];
+
+    const query: estypes.QueryDslQueryContainer = { bool: { must, filter: this.buildVisibilityFilters(input) } };
+    const sort: estypes.SortCombinations[] = [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
+
+    return this.executeSearch(query, sort, limit, input.cursor);
+  }
+
+  private buildVisibilityFilters(input: {
+    categories?: string[];
+    createdAt?: { from?: string; to?: string };
+    readingTime?: { min?: number; max?: number };
+  }): estypes.QueryDslQueryContainer[] {
     const filter: estypes.QueryDslQueryContainer[] = [
       { term: { status: PostStatus.PUBLISHED } },
       { terms: { paymentStatus: [PostPaymentStatus.SUCCEEDED, PostPaymentStatus.NOT_REQUIRED] } },
@@ -252,18 +293,20 @@ export class PostsService {
     if (input.readingTime?.min || input.readingTime?.max) {
       filter.push({ range: { readingTimeMinutes: { gte: input.readingTime.min, lte: input.readingTime.max } } });
     }
+    return filter;
+  }
 
-    const query: estypes.QueryDslQueryContainer = { bool: { must, filter } };
-
-    const sort: estypes.SortCombinations[] = hasQuery
-      ? [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }]
-      : [{ createdAt: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
-
+  private async executeSearch(
+    query: estypes.QueryDslQueryContainer,
+    sort: estypes.SortCombinations[],
+    limit: number,
+    cursor?: string,
+  ): Promise<PostSearchResult> {
     const response = await this.elasticsearchService.search<PostSearchDocument>(ES_INDICES.Posts, {
       query,
       sort,
       size: limit,
-      search_after: decodeCursor(input.cursor),
+      search_after: decodeCursor(cursor),
     });
 
     const hits = response.hits.hits;

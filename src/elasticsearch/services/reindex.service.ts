@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { estypes } from '@elastic/elasticsearch';
 
 import { UserEntity } from '../../users/entities/user.entity';
 import { PostEntity } from '../../posts/entities/post.entity';
@@ -11,7 +12,7 @@ import { CommentIndexService } from '../../comments/comment-index.service';
 import { ElasticsearchService } from './elasticsearch.service';
 import { ES_INDICES } from '../enums/indices';
 import { usersMapping } from '../mappings/users.mapping';
-import { postsMapping } from '../mappings/posts.mapping';
+import { postsMapping, postsIndexSettings } from '../mappings/posts.mapping';
 import { commentsMapping } from '../mappings/comments.mapping';
 
 const BATCH_SIZE = 500;
@@ -41,12 +42,12 @@ export class ReindexService {
   }
 
   private async reindexTarget(target: ES_INDICES, options: ReindexOptions): Promise<void> {
-    const { index, mapping } = this.indexFor(target);
+    const { index, mapping, settings } = this.indexFor(target);
 
     if (options.recreate) {
       await this.elasticsearchService.client.indices.delete({ index, ignore_unavailable: true });
     }
-    await this.elasticsearchService.ensureIndex(index, mapping);
+    await this.elasticsearchService.ensureIndex(index, mapping, settings);
 
     let skip = 0;
     let indexed = 0;
@@ -87,12 +88,16 @@ export class ReindexService {
     this.logger.log(`[${target}] indexed=${indexed} skipped(unchanged)=${skippedUnchanged}`);
   }
 
-  private indexFor(target: ES_INDICES) {
+  private indexFor(target: ES_INDICES): {
+    index: ES_INDICES;
+    mapping: estypes.MappingTypeMapping;
+    settings?: estypes.IndicesIndexSettings;
+  } {
     switch (target) {
       case ES_INDICES.Users:
         return { index: ES_INDICES.Users, mapping: usersMapping };
       case ES_INDICES.Posts:
-        return { index: ES_INDICES.Posts, mapping: postsMapping };
+        return { index: ES_INDICES.Posts, mapping: postsMapping, settings: postsIndexSettings };
       case ES_INDICES.Comments:
         return { index: ES_INDICES.Comments, mapping: commentsMapping };
     }

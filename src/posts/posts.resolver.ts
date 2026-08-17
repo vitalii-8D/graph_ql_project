@@ -5,7 +5,7 @@ import { PostsService } from './services/posts.service';
 import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
 import { UpdatePostInput } from './dto/update-post.input';
-import { SearchPostsInput } from './dto/search-posts.input';
+import { SearchPostsInput, SearchPostsAdvancedInput } from './dto/search-posts.input';
 import { PostSearchResult } from './dto/post-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -49,6 +49,11 @@ export class PostsResolver {
   @Query(() => PostSearchResult, { name: 'searchPosts' })
   searchPosts(@Args('input') input: SearchPostsInput): Promise<PostSearchResult> {
     return this.postsService.search(input);
+  }
+
+  @Query(() => PostSearchResult, { name: 'searchPostsAdvanced' })
+  searchPostsAdvanced(@Args('input') input: SearchPostsAdvancedInput): Promise<PostSearchResult> {
+    return this.postsService.searchAdvanced(input);
   }
 
   @UseGuards(GqlAuthGuard)

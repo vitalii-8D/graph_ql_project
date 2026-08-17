@@ -412,6 +412,7 @@ type Query {
   post(id: ID!): PostEntity!
   posts: [PostEntity!]!
   searchPosts(input: SearchPostsInput!): PostSearchResult!
+  searchPostsAdvanced(input: SearchPostsAdvancedInput!): PostSearchResult!
   searchUsers(input: SearchUsersInput!): UserSearchResult!
   transactionsForPost(postId: ID!): [PaymentTransactionEntity!]!
   user(id: ID!): UserEntity!
@@ -432,6 +433,15 @@ type RoleBreakdownPoint {
   offline: Int!
   online: Int!
   role: UserRole!
+}
+
+input SearchPostsAdvancedInput {
+  categories: [String!]
+  createdAt: DateRangeInput
+  cursor: String
+  limit: Int = 10
+  queryString: String!
+  readingTime: ReadingTimeRangeInput
 }
 
 input SearchPostsInput {
