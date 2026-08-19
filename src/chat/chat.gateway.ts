@@ -23,6 +23,10 @@ import { UserRole } from '../users/enums';
 import { UsersService } from '../users/services/users.service';
 import { config } from '../constants/config';
 
+type RoomName = string;
+type UserId = number;
+type SocketId = string;
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -32,11 +36,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   // roomName -> userId -> set of socket ids the user is connected with in that room.
   // Lets us tell a user's *last* socket leaving a room (real "user left") apart from
   // one of several tabs/sockets for the same user joining/leaving.
-  private readonly roomPresence = new Map<string, Map<number, Set<string>>>();
+  private readonly roomPresence = new Map<RoomName, Map<UserId, Set<SocketId>>>();
 
   // userId -> set of socket ids, across all rooms - lets us only flip a user to
   // offline once their *last* open socket (tab/device) disconnects.
-  private readonly userConnections = new Map<number, Set<string>>();
+  private readonly userConnections = new Map<UserId, Set<SocketId>>();
 
   @WebSocketServer()
   server: Server;
@@ -53,6 +57,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     // is populated *before* the connection is accepted and 'connect' fires client-side.
     // Otherwise a message emitted right after 'connect' (e.g. the FE's immediate
     // joinRoom) can race this async lookup and hit an unset client.data.user.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     server.use(async (client: AuthenticatedSocket, next: (err?: Error) => void) => {
       try {
         const token = this.extractTokenFromHandshake(client);
