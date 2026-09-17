@@ -1,6 +1,8 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, registerEnumType } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Info, registerEnumType } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import type { GraphQLResolveInfo } from 'graphql';
 
+import { getRequestedRelations } from '../utils/graphql-selection.util';
 import { CommentsService } from './comments.service';
 import { CommentEntity } from './entities/comment.entity';
 import { CreateCommentInput } from './dto/create-comment.input';
@@ -17,10 +19,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../users/enums';
-import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/services/users.service';
-import { PostEntity } from '../posts/entities/post.entity';
-import { PostsService } from '../posts/services/posts.service';
 import type { AuthenticatedUser } from '../auth/types/common';
 
 registerEnumType(CommentPeriodGranularity, {
@@ -30,11 +28,7 @@ registerEnumType(CommentPeriodGranularity, {
 
 @Resolver(() => CommentEntity)
 export class CommentsResolver {
-  constructor(
-    private readonly commentsService: CommentsService,
-    private readonly usersService: UsersService,
-    private readonly postsService: PostsService,
-  ) {}
+  constructor(private readonly commentsService: CommentsService) {}
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => CommentEntity)
@@ -64,8 +58,11 @@ export class CommentsResolver {
   }
 
   @Query(() => [CommentEntity], { name: 'commentsByPost' })
-  commentsByPost(@Args('postId', { type: () => ID }) postId: number): Promise<CommentEntity[]> {
-    return this.commentsService.findByPost(postId);
+  commentsByPost(
+    @Args('postId', { type: () => ID }) postId: number,
+    @Info() info: GraphQLResolveInfo,
+  ): Promise<CommentEntity[]> {
+    return this.commentsService.findByPost(postId, getRequestedRelations(info, this.commentsService.entityMetadata));
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)
@@ -96,15 +93,5 @@ export class CommentsResolver {
   @Query(() => [RatingDistributionStat], { name: 'commentRatingDistribution' })
   commentRatingDistribution(): Promise<RatingDistributionStat[]> {
     return this.commentsService.ratingDistribution();
-  }
-
-  @ResolveField('post', () => PostEntity)
-  async getPost(@Parent() comment: CommentEntity): Promise<PostEntity> {
-    return this.postsService.findOne(comment.postId);
-  }
-
-  @ResolveField('author', () => UserEntity)
-  async getAuthor(@Parent() comment: CommentEntity): Promise<UserEntity | null> {
-    return this.usersService.findByIdPlain(comment.authorId);
   }
 }

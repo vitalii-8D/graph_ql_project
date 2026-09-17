@@ -1,6 +1,8 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Info } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import type { GraphQLResolveInfo } from 'graphql';
 
+import { getRequestedRelations } from '../utils/graphql-selection.util';
 import { PostsService } from './services/posts.service';
 import { PostEntity } from './entities/post.entity';
 import { CreatePostInput } from './dto/create-post.input';
@@ -9,23 +11,11 @@ import { SearchPostsInput, SearchPostsAdvancedInput } from './dto/search-posts.i
 import { PostSearchResult } from './dto/post-search-result.type';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/services/users.service';
-import { CategoryEntity } from '../categories/entities/category.entity';
-import { OpenGraphMetadataEntity } from '../open-graph/entities/open-graph-metadata.entity';
-import { OpenGraphService } from '../open-graph/services/open-graph.service';
-import { PostImageEntity } from '../post-images/entities/post-image.entity';
-import { PostImagesService } from '../post-images/post-images.service';
 import type { AuthenticatedUser } from '../auth/types/common';
 
 @Resolver(() => PostEntity)
 export class PostsResolver {
-  constructor(
-    private readonly postsService: PostsService,
-    private readonly usersService: UsersService,
-    private readonly openGraphService: OpenGraphService,
-    private readonly postImagesService: PostImagesService,
-  ) {}
+  constructor(private readonly postsService: PostsService) {}
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => PostEntity)
@@ -37,18 +27,18 @@ export class PostsResolver {
   }
 
   @Query(() => [PostEntity], { name: 'posts' })
-  findAll(): Promise<PostEntity[]> {
-    return this.postsService.findAll();
+  findAll(@Info() info: GraphQLResolveInfo): Promise<PostEntity[]> {
+    return this.postsService.findAll(getRequestedRelations(info, this.postsService.entityMetadata));
   }
 
   @Query(() => PostEntity, { name: 'post' })
-  findOne(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
-    return this.postsService.findOne(id);
+  findOne(@Args('id', { type: () => ID }) id: number, @Info() info: GraphQLResolveInfo): Promise<PostEntity> {
+    return this.postsService.findOne(id, getRequestedRelations(info, this.postsService.entityMetadata));
   }
 
   @Query(() => PostSearchResult, { name: 'searchPosts' })
-  searchPosts(@Args('input') input: SearchPostsInput): Promise<PostSearchResult> {
-    return this.postsService.search(input);
+  searchPosts(@Args('input') input: SearchPostsInput, @Info() info: GraphQLResolveInfo): Promise<PostSearchResult> {
+    return this.postsService.search(input, getRequestedRelations(info, this.postsService.entityMetadata));
   }
 
   @Query(() => PostSearchResult, { name: 'searchPostsAdvanced' })
@@ -74,25 +64,5 @@ export class PostsResolver {
   @Mutation(() => PostEntity)
   incrementPostViewCount(@Args('id', { type: () => ID }) id: number): Promise<PostEntity> {
     return this.postsService.incrementViewCount(id);
-  }
-
-  @ResolveField('author', () => UserEntity)
-  async getAuthor(@Parent() post: PostEntity): Promise<UserEntity | null> {
-    return this.usersService.findByIdPlain(post.authorId);
-  }
-
-  @ResolveField('categories', () => [CategoryEntity])
-  async getCategories(@Parent() post: PostEntity): Promise<CategoryEntity[]> {
-    return this.postsService.getPostCategories(post.id);
-  }
-
-  @ResolveField('openGraphMetadata', () => OpenGraphMetadataEntity, { nullable: true })
-  async getOpenGraphMetadata(@Parent() post: PostEntity): Promise<OpenGraphMetadataEntity | null> {
-    return this.openGraphService.findByPostId(post.id);
-  }
-
-  @ResolveField('postImage', () => PostImageEntity, { nullable: true })
-  async getPostImage(@Parent() post: PostEntity): Promise<PostImageEntity | null> {
-    return this.postImagesService.findByPostId(post.id);
   }
 }

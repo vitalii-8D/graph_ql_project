@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "nest-best-practices": {
+      "source": "biggora/claude-plugins-registry",
+      "sourceType": "github",
+      "skillPath": "src/skills/nest-best-practices/SKILL.md",
+      "computedHash": "43ea236c42ff14151da0b5dc6eac0a4ad0bb61ca4080ceae8c8d4e08de2b1430"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, type EntityMetadata } from 'typeorm';
 import type Stripe from 'stripe';
 
 import type { AuthenticatedUser } from '../auth/types/common';
@@ -201,18 +201,29 @@ export class PaymentsService {
     return paymentIntent.id ?? null;
   }
 
-  async myTransactions(user: AuthenticatedUser): Promise<PaymentTransactionEntity[]> {
+  /** Relation graph of PaymentTransactionEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
+  get entityMetadata(): EntityMetadata {
+    return this.transactionsRepository.metadata;
+  }
+
+  async myTransactions(user: AuthenticatedUser, relations: string[] = []): Promise<PaymentTransactionEntity[]> {
     return this.transactionsRepository.find({
       where: { userId: user.id },
       order: { createdAt: OrderDirection.DESC },
+      relations,
     });
   }
 
-  async transactionsForPost(postId: number, user: AuthenticatedUser): Promise<PaymentTransactionEntity[]> {
+  async transactionsForPost(
+    postId: number,
+    user: AuthenticatedUser,
+    relations: string[] = [],
+  ): Promise<PaymentTransactionEntity[]> {
     await this.findOwnedPost(postId, user);
     return this.transactionsRepository.find({
       where: { postId },
       order: { createdAt: OrderDirection.DESC },
+      relations,
     });
   }
 

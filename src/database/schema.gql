@@ -28,7 +28,7 @@ type CategoryEntity {
   description: String
   id: ID!
   name: String!
-  posts: [PostEntity!]!
+  posts: [PostEntity!]
 }
 
 type ChatAttachmentEntity {
@@ -311,7 +311,7 @@ type PostEntity {
   author: UserEntity!
   authorId: ID!
   averageRating: Float
-  categories: [CategoryEntity!]!
+  categories: [CategoryEntity!]
   commentCount: Int!
   comments: [CommentEntity!]
   content: String!
@@ -592,7 +592,7 @@ type UserEntity {
   latitude: Float
   longitude: Float
   name: String!
-  posts: [PostEntity!]!
+  posts: [PostEntity!]
   role: UserRole!
 }
 

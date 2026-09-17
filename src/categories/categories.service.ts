@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, type EntityMetadata } from 'typeorm';
 
 import { CategoryEntity } from './entities/category.entity';
 import { PostEntity } from '../posts/entities/post.entity';
@@ -12,8 +12,13 @@ export class CategoriesService {
     private categoriesRepository: Repository<CategoryEntity>,
   ) {}
 
-  async findAll(): Promise<CategoryEntity[]> {
-    return await this.categoriesRepository.find();
+  /** Relation graph of CategoryEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
+  get entityMetadata(): EntityMetadata {
+    return this.categoriesRepository.metadata;
+  }
+
+  async findAll(relations: string[] = []): Promise<CategoryEntity[]> {
+    return await this.categoriesRepository.find({ relations });
   }
 
   async findByPostId(postId: number): Promise<CategoryEntity[]> {

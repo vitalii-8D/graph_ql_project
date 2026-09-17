@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, type EntityMetadata } from 'typeorm';
 import type { estypes } from '@elastic/elasticsearch';
 import type { AuthenticatedUser } from '../../auth/types/common';
 import { CategoryEntity } from '../../categories/entities/category.entity';
@@ -26,7 +26,6 @@ import { PostIndexService } from './post-index.service';
 import { PostStatus, PostPaymentStatus } from '../enums';
 
 const AVERAGE_READING_SPEED_WPM = 200;
-const CATEGORY_FACET_SIZE = 50;
 
 @Injectable()
 export class PostsService {
@@ -103,13 +102,19 @@ export class PostsService {
     return savedPost;
   }
 
-  async findAll(): Promise<PostEntity[]> {
+  /** Relation graph of PostEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
+  get entityMetadata(): EntityMetadata {
+    return this.postsRepository.metadata;
+  }
+
+  async findAll(relations: string[] = []): Promise<PostEntity[]> {
     return await this.postsRepository.find({
       where: [
         { status: PostStatus.PUBLISHED, paymentStatus: PostPaymentStatus.SUCCEEDED },
         { status: PostStatus.PUBLISHED, paymentStatus: PostPaymentStatus.NOT_REQUIRED },
       ],
       order: { createdAt: OrderDirection.DESC },
+      relations,
     });
   }
 
@@ -120,9 +125,10 @@ export class PostsService {
     });
   }
 
-  async findOne(id: number): Promise<PostEntity> {
+  async findOne(id: number, relations: string[] = []): Promise<PostEntity> {
     const post = await this.postsRepository.findOne({
       where: { id },
+      relations,
     });
 
     if (!post) {
@@ -202,14 +208,6 @@ export class PostsService {
     return await this.postsRepository.findBy({ id: In(ids) });
   }
 
-  async getPostCategories(postId: number): Promise<CategoryEntity[]> {
-    const post = await this.postsRepository.findOne({
-      where: { id: postId },
-      relations: ['categories'],
-    });
-    return post?.categories ?? [];
-  }
-
   async incrementViewCount(id: number): Promise<PostEntity> {
     await this.postsRepository.increment({ id }, 'viewCount', 1);
     return this.findOne(id);
@@ -220,7 +218,7 @@ export class PostsService {
     await this.postIndexService.reindexOne(postId);
   }
 
-  async search(input: SearchPostsInput): Promise<PostSearchResult> {
+  async search(input: SearchPostsInput, relations: string[] = []): Promise<PostSearchResult> {
     const limit = input.limit ?? 10;
     const hasQuery = Boolean(input.query);
 
@@ -244,7 +242,7 @@ export class PostsService {
       ? [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }]
       : [{ createdAt: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
 
-    return this.executeSearch(query, sort, limit, input.cursor);
+    return this.executeSearch(query, sort, limit, input.cursor, relations);
   }
 
   /**
@@ -301,6 +299,7 @@ export class PostsService {
     sort: estypes.SortCombinations[],
     limit: number,
     cursor?: string,
+    relations: string[] = [],
   ): Promise<PostSearchResult> {
     const response = await this.elasticsearchService.search<PostSearchDocument>(ES_INDICES.Posts, {
       query,
@@ -311,7 +310,7 @@ export class PostsService {
 
     const hits = response.hits.hits;
     const ids = hits.map((hit) => Number(hit._id));
-    const rows = ids.length > 0 ? await this.postsRepository.find({ where: { id: In(ids) } }) : [];
+    const rows = ids.length > 0 ? await this.postsRepository.find({ where: { id: In(ids) }, relations }) : [];
 
     const items = sortByIds(ids, rows);
 

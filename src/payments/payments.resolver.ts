@@ -1,24 +1,18 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Info } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
+import type { GraphQLResolveInfo } from 'graphql';
 
+import { getRequestedRelations } from '../utils/graphql-selection.util';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/common';
-import { PostEntity } from '../posts/entities/post.entity';
-import { PostsService } from '../posts/services/posts.service';
-import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/services/users.service';
 import { PublishPostResult } from './dto/publish-post-result.type';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity';
 import { PaymentsService } from './payments.service';
 
 @Resolver(() => PaymentTransactionEntity)
 export class PaymentsResolver {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-    private readonly postsService: PostsService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => PublishPostResult)
@@ -49,8 +43,11 @@ export class PaymentsResolver {
 
   @UseGuards(GqlAuthGuard)
   @Query(() => [PaymentTransactionEntity], { name: 'myTransactions' })
-  myTransactions(@CurrentUser() user: AuthenticatedUser): Promise<PaymentTransactionEntity[]> {
-    return this.paymentsService.myTransactions(user);
+  myTransactions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Info() info: GraphQLResolveInfo,
+  ): Promise<PaymentTransactionEntity[]> {
+    return this.paymentsService.myTransactions(user, getRequestedRelations(info, this.paymentsService.entityMetadata));
   }
 
   @UseGuards(GqlAuthGuard)
@@ -58,17 +55,12 @@ export class PaymentsResolver {
   transactionsForPost(
     @Args('postId', { type: () => ID }) postId: number,
     @CurrentUser() user: AuthenticatedUser,
+    @Info() info: GraphQLResolveInfo,
   ): Promise<PaymentTransactionEntity[]> {
-    return this.paymentsService.transactionsForPost(postId, user);
-  }
-
-  @ResolveField('post', () => PostEntity)
-  async getPost(@Parent() transaction: PaymentTransactionEntity): Promise<PostEntity> {
-    return this.postsService.findOne(transaction.postId);
-  }
-
-  @ResolveField('user', () => UserEntity)
-  async getUser(@Parent() transaction: PaymentTransactionEntity): Promise<UserEntity | null> {
-    return this.usersService.findByIdPlain(transaction.userId);
+    return this.paymentsService.transactionsForPost(
+      postId,
+      user,
+      getRequestedRelations(info, this.paymentsService.entityMetadata),
+    );
   }
 }

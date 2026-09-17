@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, type EntityMetadata } from 'typeorm';
 import type { estypes } from '@elastic/elasticsearch';
 
 import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
@@ -39,17 +39,23 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(): Promise<UserEntity[]> {
-    return await this.usersRepository.find();
+  /** Relation graph of UserEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
+  get entityMetadata(): EntityMetadata {
+    return this.usersRepository.metadata;
+  }
+
+  async findAll(relations: string[] = []): Promise<UserEntity[]> {
+    return await this.usersRepository.find({ relations });
   }
 
   async findByIdPlain(id: number): Promise<UserEntity | null> {
     return await this.usersRepository.findOneBy({ id });
   }
 
-  async findOne(id: number): Promise<UserEntity> {
+  async findOne(id: number, relations: string[] = []): Promise<UserEntity> {
     const user = await this.usersRepository.findOne({
       where: { id },
+      relations,
     });
 
     if (!user) {
@@ -65,7 +71,11 @@ export class UsersService {
     });
   }
 
-  async search(input: SearchUsersInput, currentUser: AuthenticatedUser): Promise<UserSearchResult> {
+  async search(
+    input: SearchUsersInput,
+    currentUser: AuthenticatedUser,
+    relations: string[] = [],
+  ): Promise<UserSearchResult> {
     const limit = input.limit ?? 10;
 
     const must: estypes.QueryDslQueryContainer[] = [];
@@ -126,7 +136,7 @@ export class UsersService {
 
     const hits = response.hits.hits;
     const ids = hits.map((hit) => Number(hit._id));
-    const rows = ids.length > 0 ? await this.usersRepository.findBy({ id: In(ids) }) : [];
+    const rows = ids.length > 0 ? await this.usersRepository.find({ where: { id: In(ids) }, relations }) : [];
 
     const items = sortByIds(ids, rows);
 

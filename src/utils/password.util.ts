@@ -22,7 +22,7 @@ export class PasswordUtil {
   async validatePassword(password: string, hash: string): Promise<boolean> {
     try {
       return await argon2.verify(hash, password + config.auth.passwordSecret);
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }

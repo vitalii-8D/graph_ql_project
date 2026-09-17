@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, type EntityMetadata } from 'typeorm';
 
 import type { AuthenticatedUser } from '../auth/types/common';
 import { PostEntity } from '../posts/entities/post.entity';
@@ -47,10 +47,16 @@ export class CommentsService {
     return savedComment;
   }
 
-  async findByPost(postId: number): Promise<CommentEntity[]> {
+  /** Relation graph of CommentEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
+  get entityMetadata(): EntityMetadata {
+    return this.commentsRepository.metadata;
+  }
+
+  async findByPost(postId: number, relations: string[] = []): Promise<CommentEntity[]> {
     return await this.commentsRepository.find({
       where: { postId },
       order: { createdAt: 'DESC' },
+      relations,
     });
   }
 
