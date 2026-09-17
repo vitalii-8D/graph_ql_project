@@ -38,7 +38,7 @@ export class PostsResolver {
 
   @Query(() => PostSearchResult, { name: 'searchPosts' })
   searchPosts(@Args('input') input: SearchPostsInput, @Info() info: GraphQLResolveInfo): Promise<PostSearchResult> {
-    return this.postsService.search(input, getRequestedRelations(info, this.postsService.entityMetadata));
+    return this.postsService.search(input, getRequestedRelations(info, this.postsService.entityMetadata, 'items'));
   }
 
   @Query(() => PostSearchResult, { name: 'searchPostsAdvanced' })

@@ -47,7 +47,11 @@ export class UsersResolver {
     @CurrentUser() user: AuthenticatedUser,
     @Info() info: GraphQLResolveInfo,
   ): Promise<UserSearchResult> {
-    return this.usersService.search(input, user, getRequestedRelations(info, this.usersService.entityMetadata));
+    return this.usersService.search(
+      input,
+      user,
+      getRequestedRelations(info, this.usersService.entityMetadata, 'items'),
+    );
   }
 
   @UseGuards(GqlAuthGuard)

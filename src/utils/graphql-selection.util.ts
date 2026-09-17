@@ -88,13 +88,28 @@ export function getRequestedFieldNames(info: GraphQLResolveInfo): Set<string> {
  * eager-load them in one go instead of one query per parent row. Entities double as GraphQL types here, so a
  * selected field is a relation exactly when the entity metadata says so; nested selections yield dotted paths
  * (`comments.author.posts`) and recursion stops at MAX_RELATION_DEPTH.
+ *
+ * `nestedField` is for root queries whose return type wraps the entity list under a field of its own (e.g.
+ * `PostSearchResult.items`) instead of returning the entity directly — pass the wrapper field's name so relation
+ * collection starts from its selection set rather than the wrapper type's.
  */
-export function getRequestedRelations(info: GraphQLResolveInfo, metadata: EntityMetadata): string[] {
+export function getRequestedRelations(
+  info: GraphQLResolveInfo,
+  metadata: EntityMetadata,
+  nestedField?: string,
+): string[] {
   const relations = new Set<string>();
 
   for (const fieldNode of info.fieldNodes) {
-    if (fieldNode.selectionSet) {
-      collectRelations(fieldNode.selectionSet, info.fragments, metadata, '', 1, relations);
+    let selectionSet = fieldNode.selectionSet;
+
+    if (nestedField && selectionSet) {
+      const wrapperNodes = collectFieldNodes(selectionSet, info.fragments).get(nestedField);
+      selectionSet = wrapperNodes?.[0]?.selectionSet;
+    }
+
+    if (selectionSet) {
+      collectRelations(selectionSet, info.fragments, metadata, '', 1, relations);
     }
   }
 
