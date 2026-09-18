@@ -42,15 +42,36 @@ type ChatAttachmentEntity {
   url: String!
 }
 
+input ChatAttachmentInput {
+  key: String!
+  mimeType: String!
+  originalFileName: String!
+  sizeBytes: Int!
+  url: String!
+}
+
 type ChatMessageEntity {
   attachments: [ChatAttachmentEntity!]!
   createdAt: DateTime!
   id: ID!
+  isAdminBroadcast: Boolean
   message: String!
   room: ChatRoomEntity!
   roomId: ID!
   user: UserEntity!
   userId: ID!
+}
+
+type ChatPresenceEvent {
+  roomId: ID!
+  type: ChatPresenceEventType!
+  userId: ID!
+  userName: String!
+}
+
+enum ChatPresenceEventType {
+  JOINED
+  LEFT
 }
 
 type ChatRoomEntity {
@@ -210,6 +231,7 @@ input LoginInput {
 }
 
 type Mutation {
+  adminBroadcastChat(message: String!): [ChatMessageEntity!]!
   createChatRoom(createRoomInput: CreateRoomInput!): ChatRoomEntity!
   createComment(createCommentInput: CreateCommentInput!): CommentEntity!
   createOpenGraphMetadata(createOpenGraphInput: CreateOpenGraphInput!, postId: ID!): OpenGraphMetadataEntity!
@@ -225,6 +247,7 @@ type Mutation {
   removePost(id: ID!): PostEntity!
   removeUser(id: ID!): UserEntity!
   retryPostPayment(postId: ID!): PublishPostResult!
+  sendChatMessage(sendMessageInput: SendMessageInput!): ChatMessageEntity!
   startDirectMessage(userId: ID!): ChatRoomEntity!
   updateAvatar(input: UserAvatarInput!): UserAvatarEntity!
   updateComment(updateCommentInput: UpdateCommentInput!): CommentEntity!
@@ -464,6 +487,12 @@ input SearchUsersInput {
   useMyLocation: Boolean = false
 }
 
+input SendMessageInput {
+  attachments: [ChatAttachmentInput!]
+  message: String
+  roomId: ID!
+}
+
 type ShareLinks {
   facebook: String!
   linkedin: String!
@@ -476,6 +505,11 @@ type SignificantTerm {
   docCount: Int!
   score: Float!
   term: String!
+}
+
+type Subscription {
+  chatMessageAdded(roomId: ID!): ChatMessageEntity!
+  chatRoomPresence(roomId: ID!): ChatPresenceEvent!
 }
 
 type TermCount {

@@ -9,21 +9,18 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { JwtService } from '@nestjs/jwt';
 
 import { createLogger } from '../utils/logger';
 import { ChatService } from './chat.service';
+import { ChatPresenceTrackerService } from './chat-presence-tracker.service';
 import { SendMessageInput } from './dto/send-message.input';
 import { ChatMessageEntity } from './entities/chat-message.entity';
 import { ChatSocketEvent } from './enums/chat-socket-event.enum';
 import type { AuthenticatedSocket } from './types/common';
 import { AuthService } from '../auth/auth.service';
-import type { JwtPayload } from '../auth/types/common';
 import { UserRole } from '../users/enums';
 import { UsersService } from '../users/services/users.service';
-import { config } from '../constants/config';
 
-type RoomName = string;
 type UserId = number;
 type SocketId = string;
 
@@ -32,11 +29,6 @@ type SocketId = string;
 })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = createLogger(ChatGateway.name);
-
-  // roomName -> userId -> set of socket ids the user is connected with in that room.
-  // Lets us tell a user's *last* socket leaving a room (real "user left") apart from
-  // one of several tabs/sockets for the same user joining/leaving.
-  private readonly roomPresence = new Map<RoomName, Map<UserId, Set<SocketId>>>();
 
   // userId -> set of socket ids, across all rooms - lets us only flip a user to
   // offline once their *last* open socket (tab/device) disconnects.
@@ -47,9 +39,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   constructor(
     private chatService: ChatService,
-    private jwtService: JwtService,
     private authService: AuthService,
     private usersService: UsersService,
+    private presenceTracker: ChatPresenceTrackerService,
   ) {}
 
   afterInit(server: Server) {
@@ -67,9 +59,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
           return;
         }
 
-        const payload = this.jwtService.verify<JwtPayload>(token, { secret: config.auth.jwtSecret });
-
-        const user = await this.authService.validatePayload(payload);
+        const user = await this.authService.verifyAccessToken(token);
 
         client.data.user = user;
         this.logger.debug({ msg: 'Socket handshake authenticated', socketId: client.id, userId: user.id });
@@ -145,57 +135,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         continue;
       }
 
-      const userFullyLeft = this.trackLeave(roomName, user.id, client.id);
+      const roomId = Number(roomName.slice('room-'.length));
+      const userFullyLeft = this.presenceTracker.trackLeave(roomId, user.id, client.id);
       if (userFullyLeft) {
         client.to(roomName).emit(ChatSocketEvent.UserLeft, {
           userId: String(user.id),
           userName: user.name,
-          roomId: roomName.slice('room-'.length),
+          roomId: String(roomId),
         });
       }
     }
-  }
-
-  // Returns true only when this is the first socket the user has open in the room,
-  // so a second tab for the same user doesn't trigger a duplicate "joined" broadcast.
-  private trackJoin(roomName: string, userId: number, socketId: string): boolean {
-    let usersInRoom = this.roomPresence.get(roomName);
-    if (!usersInRoom) {
-      usersInRoom = new Map();
-      this.roomPresence.set(roomName, usersInRoom);
-    }
-
-    let sockets = usersInRoom.get(userId);
-    const isFirstSocketForUser = !sockets;
-    if (!sockets) {
-      sockets = new Set();
-      usersInRoom.set(userId, sockets);
-    }
-    sockets.add(socketId);
-
-    return isFirstSocketForUser;
-  }
-
-  // Returns true only when this was the user's last open socket in the room,
-  // so closing one of several tabs doesn't trigger a premature "left" broadcast.
-  private trackLeave(roomName: string, userId: number, socketId: string): boolean {
-    const usersInRoom = this.roomPresence.get(roomName);
-    const sockets = usersInRoom?.get(userId);
-    if (!usersInRoom || !sockets) {
-      return false;
-    }
-
-    sockets.delete(socketId);
-    if (sockets.size > 0) {
-      return false;
-    }
-
-    usersInRoom.delete(userId);
-    if (usersInRoom.size === 0) {
-      this.roomPresence.delete(roomName);
-    }
-
-    return true;
   }
 
   // IDs are stringified to match the GraphQL `ID` scalar's serialization, which is what
@@ -225,13 +174,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   private extractTokenFromHandshake(client: Socket): string | null {
-    const authHeader = client.handshake.headers.authorization;
-    if (!authHeader) {
-      return null;
-    }
+    const authorizationHeader = client.handshake.headers.authorization;
 
-    const [type, token] = authHeader.split(' ');
-    return type === 'Bearer' ? token : null;
+    return this.authService.extractTokenFromAuthorizationHeader(authorizationHeader);
   }
 
   @SubscribeMessage(ChatSocketEvent.JoinRoom)
@@ -256,7 +201,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       // Notify other users in the room, unless this user already has another
       // socket (tab) open in the room - avoids a duplicate "joined" per tab.
-      const isFirstSocketForUser = this.trackJoin(roomName, client.data.user.id, client.id);
+      const isFirstSocketForUser = this.presenceTracker.trackJoin(data.roomId, client.data.user.id, client.id);
       if (isFirstSocketForUser) {
         client.to(roomName).emit(ChatSocketEvent.UserJoined, {
           userId: String(client.data.user.id),
@@ -286,7 +231,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     // Only notify others once this was the user's last open socket in the room -
     // avoids a premature "left" broadcast while another tab is still connected.
-    const userFullyLeft = this.trackLeave(roomName, client.data.user.id, client.id);
+    const userFullyLeft = this.presenceTracker.trackLeave(data.roomId, client.data.user.id, client.id);
     if (userFullyLeft) {
       client.to(roomName).emit(ChatSocketEvent.UserLeft, {
         userId: String(client.data.user.id),

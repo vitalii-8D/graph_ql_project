@@ -12,6 +12,7 @@ import { CommentsModule } from './comments/comments.module';
 import { OpenGraphModule } from './open-graph/open-graph.module';
 import { SeederModule } from './database/seeds/seeder.module';
 import { AuthModule } from './auth/auth.module';
+import { AuthService } from './auth/auth.service';
 import { ChatModule } from './chat/chat.module';
 import { StorageModule } from './storage/storage.module';
 import { ElasticsearchModule } from './elasticsearch/elasticsearch.module';
@@ -21,17 +22,23 @@ import { PaymentsModule } from './payments/payments.module';
 import { databaseConfig } from './database/database.config';
 import { AppController } from './app.controller';
 import { GraphqlLoggingPlugin } from './utils/graphql-logging.plugin';
+import { createGraphqlSubscriptionsConfig } from './graphql-subscriptions.config';
 
 const autoSchemaFile = join(process.cwd(), 'src/database/schema.gql');
 
 @Module({
   imports: [
     UtilsModule,
-    GraphQLModule.forRoot<ApolloDriverConfig>({
+    GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile,
-      sortSchema: true,
-      playground: true,
+      imports: [AuthModule],
+      inject: [AuthService],
+      useFactory: (authService: AuthService): ApolloDriverConfig => ({
+        autoSchemaFile,
+        sortSchema: true,
+        playground: true,
+        ...createGraphqlSubscriptionsConfig(authService),
+      }),
     }),
     TypeOrmModule.forRoot(databaseConfig),
     ElasticsearchModule,

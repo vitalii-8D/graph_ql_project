@@ -40,4 +40,10 @@ export class ChatMessageEntity {
   @Field(() => [ChatAttachmentEntity])
   @OneToMany(() => ChatAttachmentEntity, (attachment) => attachment.message, { eager: true })
   attachments: ChatAttachmentEntity[];
+
+  // Not persisted - set on the in-memory object handed to subscribers/socket clients when a
+  // message came from ChatGateway.handleAdminBroadcast / ChatResolver.adminBroadcastChat, so the
+  // FE can style it as an announcement instead of a regular room message.
+  @Field(() => Boolean, { nullable: true })
+  isAdminBroadcast?: boolean;
 }
