@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
 import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
+import { ChatBroadcastService } from './chat-broadcast.service';
 import { ChatResolver } from './chat.resolver';
 import { ChatSubscriptionsResolver } from './chat-subscriptions.resolver';
 import { ChatPresenceTrackerService } from './chat-presence-tracker.service';
@@ -12,20 +12,19 @@ import { ChatMessageEntity } from './entities/chat-message.entity';
 import { ChatAttachmentEntity } from './entities/chat-attachment.entity';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
-import { config } from '../constants/config';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatRoomEntity, ChatMessageEntity, ChatAttachmentEntity]),
-    JwtModule.register({
-      secret: config.auth.jwtSecret,
-    }),
     UsersModule,
     AuthModule,
+    StorageModule,
   ],
   providers: [
     ChatGateway,
     ChatService,
+    ChatBroadcastService,
     ChatResolver,
     ChatSubscriptionsResolver,
     ChatPresenceTrackerService,

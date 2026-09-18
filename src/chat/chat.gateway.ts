@@ -12,9 +12,11 @@ import { Server, Socket } from 'socket.io';
 
 import { createLogger } from '../utils/logger';
 import { ChatService } from './chat.service';
+import { ChatBroadcastService } from './chat-broadcast.service';
 import { ChatPresenceTrackerService } from './chat-presence-tracker.service';
 import { SendMessageInput } from './dto/send-message.input';
-import { ChatMessageEntity } from './entities/chat-message.entity';
+import { RoomIdInput } from './dto/room-id.input';
+import { AdminBroadcastInput } from './dto/admin-broadcast.input';
 import { ChatSocketEvent } from './enums/chat-socket-event.enum';
 import type { AuthenticatedSocket } from './types/common';
 import { AuthService } from '../auth/auth.service';
@@ -39,12 +41,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   constructor(
     private chatService: ChatService,
+    private chatBroadcastService: ChatBroadcastService,
     private authService: AuthService,
     private usersService: UsersService,
     private presenceTracker: ChatPresenceTrackerService,
   ) {}
 
   afterInit(server: Server) {
+    this.chatBroadcastService.registerSocketServer(server);
+
     // Auth runs as connection middleware (not handleConnection) so client.data.user
     // is populated *before* the connection is accepted and 'connect' fires client-side.
     // Otherwise a message emitted right after 'connect' (e.g. the FE's immediate
@@ -147,40 +152,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
   }
 
-  // IDs are stringified to match the GraphQL `ID` scalar's serialization, which is what
-  // the initial loader-fetched messages use - keeps `message.userId === currentUserId`
-  // comparisons (e.g. own-message styling) consistent between the two data sources.
-  private serializeMessage(message: ChatMessageEntity) {
-    return {
-      id: String(message.id),
-      message: message.message,
-      userId: String(message.userId),
-      user: {
-        id: String(message.user.id),
-        name: message.user.name,
-        email: message.user.email,
-      },
-      roomId: String(message.roomId),
-      createdAt: message.createdAt,
-      attachments: (message.attachments ?? []).map((attachment) => ({
-        id: String(attachment.id),
-        key: attachment.key,
-        url: attachment.url,
-        originalFileName: attachment.originalFileName,
-        mimeType: attachment.mimeType,
-        sizeBytes: attachment.sizeBytes,
-      })),
-    };
-  }
-
   private extractTokenFromHandshake(client: Socket): string | null {
     const authorizationHeader = client.handshake.headers.authorization;
 
     return this.authService.extractTokenFromAuthorizationHeader(authorizationHeader);
   }
 
+  private emitError(client: AuthenticatedSocket, event: ChatSocketEvent, err: unknown): void {
+    this.logger.error(err);
+    const error = err as Error;
+    client.emit(ChatSocketEvent.Error, { message: error.message, event });
+  }
+
   @SubscribeMessage(ChatSocketEvent.JoinRoom)
-  async handleJoinRoom(@MessageBody() data: { roomId: number }, @ConnectedSocket() client: AuthenticatedSocket) {
+  async handleJoinRoom(@MessageBody() data: RoomIdInput, @ConnectedSocket() client: AuthenticatedSocket) {
     this.logger.debug({ msg: 'joinRoom received', roomId: data.roomId, userId: client.data.user.id });
 
     try {
@@ -190,7 +175,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       await client.join(roomName);
 
       const roomMessages = await this.chatService.getRoomMessages(data.roomId, client.data.user.id);
-      const messages = roomMessages.map((roomMessage) => this.serializeMessage(roomMessage));
+      const messages = roomMessages.map((roomMessage) => this.chatBroadcastService.serializeMessage(roomMessage));
 
       // Send confirmation with callback
       client.emit(ChatSocketEvent.JoinedRoom, {
@@ -212,40 +197,38 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
       this.logger.info({ msg: 'User joined room', email: client.data.user.email, roomId: data.roomId });
     } catch (err) {
-      this.logger.error(err);
-
-      const error = err as Error;
-      client.emit(ChatSocketEvent.Error, {
-        message: error.message,
-        event: ChatSocketEvent.JoinRoom,
-      });
+      this.emitError(client, ChatSocketEvent.JoinRoom, err);
     }
   }
 
   @SubscribeMessage(ChatSocketEvent.LeaveRoom)
-  async handleLeaveRoom(@MessageBody() data: { roomId: number }, @ConnectedSocket() client: AuthenticatedSocket) {
+  async handleLeaveRoom(@MessageBody() data: RoomIdInput, @ConnectedSocket() client: AuthenticatedSocket) {
     this.logger.debug({ msg: 'leaveRoom received', roomId: data.roomId, userId: client.data.user.id });
 
-    const roomName = `room-${data.roomId}`;
-    await client.leave(roomName);
+    try {
+      const roomName = `room-${data.roomId}`;
+      await client.leave(roomName);
 
-    // Only notify others once this was the user's last open socket in the room -
-    // avoids a premature "left" broadcast while another tab is still connected.
-    const userFullyLeft = this.presenceTracker.trackLeave(data.roomId, client.data.user.id, client.id);
-    if (userFullyLeft) {
-      client.to(roomName).emit(ChatSocketEvent.UserLeft, {
-        userId: String(client.data.user.id),
-        userName: client.data.user.name,
+      // Only notify others once this was the user's last open socket in the room -
+      // avoids a premature "left" broadcast while another tab is still connected.
+      const userFullyLeft = this.presenceTracker.trackLeave(data.roomId, client.data.user.id, client.id);
+      if (userFullyLeft) {
+        client.to(roomName).emit(ChatSocketEvent.UserLeft, {
+          userId: String(client.data.user.id),
+          userName: client.data.user.name,
+          roomId: String(data.roomId),
+        });
+      }
+
+      client.emit(ChatSocketEvent.LeftRoom, {
         roomId: String(data.roomId),
+        success: true,
       });
+
+      this.logger.info({ msg: 'User left room', email: client.data.user.email, roomId: data.roomId });
+    } catch (err) {
+      this.emitError(client, ChatSocketEvent.LeaveRoom, err);
     }
-
-    client.emit(ChatSocketEvent.LeftRoom, {
-      roomId: String(data.roomId),
-      success: true,
-    });
-
-    this.logger.info({ msg: 'User left room', email: client.data.user.email, roomId: data.roomId });
   }
 
   @SubscribeMessage(ChatSocketEvent.SendMessage)
@@ -258,13 +241,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     try {
       const userId = client.data.user.id;
 
-      // Save message to database
       const savedMessage = await this.chatService.saveMessage(userId, sendMessageInput);
 
-      const roomName = `room-${sendMessageInput.roomId}`;
-
-      // Broadcast message to all users in the room (including sender)
-      this.server.to(roomName).emit(ChatSocketEvent.NewMessage, this.serializeMessage(savedMessage));
+      // Broadcasts to both this Socket.IO room and the GraphQL-subscription transport.
+      await this.chatBroadcastService.broadcastNewMessage(savedMessage);
 
       client.emit(ChatSocketEvent.MessageSent, {
         success: true,
@@ -278,18 +258,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         messageId: savedMessage.id,
       });
     } catch (err) {
-      this.logger.error(err);
-
-      const error = err as Error;
-      client.emit(ChatSocketEvent.Error, {
-        message: error.message,
-        event: 'sendMessage',
-      });
+      this.emitError(client, ChatSocketEvent.SendMessage, err);
     }
   }
 
   @SubscribeMessage(ChatSocketEvent.AdminBroadcast)
-  async handleAdminBroadcast(@MessageBody() data: { message: string }, @ConnectedSocket() client: AuthenticatedSocket) {
+  async handleAdminBroadcast(@MessageBody() data: AdminBroadcastInput, @ConnectedSocket() client: AuthenticatedSocket) {
     this.logger.debug({ msg: 'adminBroadcast received', userId: client.data.user.id });
 
     try {
@@ -299,42 +273,22 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.logger.error({ msg: 'Unauthorized adminBroadcast attempt', userId: user.id, role: user.role });
         client.emit(ChatSocketEvent.Error, {
           message: 'Only admins can broadcast to all rooms',
-          event: 'adminBroadcast',
+          event: ChatSocketEvent.AdminBroadcast,
         });
         return;
       }
 
-      const roomIds = await this.chatService.getAllRoomIds();
-
-      const savedMessages: ChatMessageEntity[] = [];
-      for (const roomId of roomIds) {
-        const savedMessage = await this.chatService.saveMessage(user.id, {
-          roomId,
-          message: data.message,
-        });
-        savedMessages.push(savedMessage);
-
-        const roomName = `room-${roomId}`;
-        this.server
-          .to(roomName)
-          .emit(ChatSocketEvent.NewMessage, { ...this.serializeMessage(savedMessage), isAdminBroadcast: true });
-      }
+      const savedMessages = await this.chatService.broadcastMessageToAllRooms(user.id, data.message);
 
       client.emit(ChatSocketEvent.BroadcastSent, {
         success: true,
-        roomCount: roomIds.length,
+        roomCount: savedMessages.length,
         messageIds: savedMessages.map((m) => m.id),
       });
 
-      this.logger.info({ msg: 'Admin broadcast sent', email: user.email, roomCount: roomIds.length });
+      this.logger.info({ msg: 'Admin broadcast sent', email: user.email, roomCount: savedMessages.length });
     } catch (err) {
-      this.logger.error(err);
-
-      const error = err as Error;
-      client.emit(ChatSocketEvent.Error, {
-        message: error.message,
-        event: 'adminBroadcast',
-      });
+      this.emitError(client, ChatSocketEvent.AdminBroadcast, err);
     }
   }
 }

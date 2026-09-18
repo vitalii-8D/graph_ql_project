@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, type EntityMetadata } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import type Stripe from 'stripe';
 
 import type { AuthenticatedUser } from '../auth/types/common';
@@ -9,6 +9,7 @@ import { OrderDirection } from '../enums/order-direction.enum';
 import { PostEntity } from '../posts/entities/post.entity';
 import { PostStatus, PostPaymentStatus } from '../posts/enums';
 import { PostIndexService } from '../posts/services/post-index.service';
+import { RelationAwareService } from '../utils/relation-aware.service';
 import { UserRole } from '../users/enums';
 import { POST_PUBLISH_PRICE_CENTS, POST_PUBLISH_CURRENCY } from './constants';
 import { PublishPostResult } from './dto/publish-post-result.type';
@@ -16,8 +17,15 @@ import { PaymentTransactionEntity } from './entities/payment-transaction.entity'
 import { PaymentTransactionStatus } from './enums';
 import { StripeService } from './services/stripe.service';
 
+/** Ownership-check helper shared by every mutation/query below. */
+function assertOwnerOrAdmin(ownerId: number, user: AuthenticatedUser, message: string): void {
+  if (user.role !== UserRole.ADMIN && ownerId !== user.id) {
+    throw new ForbiddenException(message);
+  }
+}
+
 @Injectable()
-export class PaymentsService {
+export class PaymentsService extends RelationAwareService<PaymentTransactionEntity> {
   constructor(
     @InjectRepository(PaymentTransactionEntity)
     private transactionsRepository: Repository<PaymentTransactionEntity>,
@@ -25,7 +33,14 @@ export class PaymentsService {
     private postsRepository: Repository<PostEntity>,
     private readonly stripeService: StripeService,
     private readonly postIndexService: PostIndexService,
-  ) {}
+    private readonly dataSource: DataSource,
+  ) {
+    super();
+  }
+
+  protected get repository(): Repository<PaymentTransactionEntity> {
+    return this.transactionsRepository;
+  }
 
   async publishPost(postId: number, user: AuthenticatedUser): Promise<PublishPostResult> {
     const post = await this.findOwnedPost(postId, user);
@@ -58,9 +73,7 @@ export class PaymentsService {
     if (!post) {
       throw new NotFoundException(`Post with ID ${postId} not found`);
     }
-    if (user.role !== UserRole.ADMIN && post.authorId !== user.id) {
-      throw new ForbiddenException('You can only publish your own posts');
-    }
+    assertOwnerOrAdmin(post.authorId, user, 'You can only publish your own posts');
     return post;
   }
 
@@ -87,29 +100,28 @@ export class PaymentsService {
     // Stripe doesn't create the PaymentIntent until the customer completes the checkout page, so
     // `session.payment_intent` is null here — the transaction is keyed on the checkout session id
     // for now, and `stripePaymentIntentId` gets backfilled once the webhook tells us it exists.
-    const transaction = this.transactionsRepository.create({
-      userId: user.id,
-      postId: post.id,
-      stripeCheckoutSessionId: session.id,
-      amount: POST_PUBLISH_PRICE_CENTS,
-      currency: POST_PUBLISH_CURRENCY,
-      status: PaymentTransactionStatus.PENDING,
+    await this.dataSource.transaction(async (manager) => {
+      const transaction = manager.create(PaymentTransactionEntity, {
+        userId: user.id,
+        postId: post.id,
+        stripeCheckoutSessionId: session.id,
+        amount: POST_PUBLISH_PRICE_CENTS,
+        currency: POST_PUBLISH_CURRENCY,
+        status: PaymentTransactionStatus.PENDING,
+      });
+      await manager.save(transaction);
+      await manager.update(PostEntity, { id: post.id }, { paymentStatus: PostPaymentStatus.PENDING });
     });
-    await this.transactionsRepository.save(transaction);
-
-    post.paymentStatus = PostPaymentStatus.PENDING;
-    await this.postsRepository.save(post);
 
     return { checkoutUrl: session.url, checkoutSessionId: session.id };
   }
 
+  // Always resyncs from Stripe's authoritative PaymentIntent status rather than gating on the
+  // transaction's current status — Checkout lets a customer retry with a different card, so a
+  // `payment_intent.payment_failed` event can legitimately be followed by a later
+  // `checkout.session.completed` for the same PaymentIntent, and both must be applied.
   private async syncPaymentIntentStatus(paymentIntentId: string): Promise<void> {
     const transaction = await this.findTransactionByPaymentIntentId(paymentIntentId);
-
-    if (transaction.status !== PaymentTransactionStatus.PENDING) {
-      return;
-    }
-
     const paymentIntent = await this.stripeService.retrievePaymentIntent(paymentIntentId);
     await this.applyPaymentIntentStatus(transaction, paymentIntent);
   }
@@ -146,23 +158,38 @@ export class PaymentsService {
     paymentIntent: Stripe.PaymentIntent,
   ): Promise<void> {
     if (paymentIntent.status === 'succeeded') {
-      transaction.status = PaymentTransactionStatus.SUCCEEDED;
-      await this.transactionsRepository.save(transaction);
-
-      const post = await this.postsRepository.findOne({ where: { id: transaction.postId } });
-      if (post) {
-        post.status = PostStatus.PUBLISHED;
-        post.hasBeenPublished = true;
-        post.paymentStatus = PostPaymentStatus.SUCCEEDED;
-        await this.postsRepository.save(post);
-        await this.postIndexService.reindexOne(post.id);
+      // Idempotent: a redelivered/duplicate webhook event for an already-applied success is a no-op.
+      if (transaction.status === PaymentTransactionStatus.SUCCEEDED) {
+        return;
       }
-    } else if (paymentIntent.status === 'canceled' || paymentIntent.last_payment_error) {
-      transaction.status = PaymentTransactionStatus.FAILED;
-      transaction.failureReason = paymentIntent.last_payment_error?.message ?? 'Payment failed';
-      await this.transactionsRepository.save(transaction);
 
-      await this.postsRepository.update({ id: transaction.postId }, { paymentStatus: PostPaymentStatus.FAILED });
+      const postId = transaction.postId;
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(PaymentTransactionEntity, { id: transaction.id }, { status: PaymentTransactionStatus.SUCCEEDED });
+        await manager.update(
+          PostEntity,
+          { id: postId },
+          { status: PostStatus.PUBLISHED, hasBeenPublished: true, paymentStatus: PostPaymentStatus.SUCCEEDED },
+        );
+      });
+      await this.postIndexService.reindexOne(postId);
+    } else if (paymentIntent.status === 'canceled' || paymentIntent.last_payment_error) {
+      // Never regress an already-confirmed success from a stale/out-of-order failure event.
+      if (transaction.status === PaymentTransactionStatus.SUCCEEDED) {
+        return;
+      }
+
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(
+          PaymentTransactionEntity,
+          { id: transaction.id },
+          {
+            status: PaymentTransactionStatus.FAILED,
+            failureReason: paymentIntent.last_payment_error?.message ?? 'Payment failed',
+          },
+        );
+        await manager.update(PostEntity, { id: transaction.postId }, { paymentStatus: PostPaymentStatus.FAILED });
+      });
     }
   }
 
@@ -201,11 +228,6 @@ export class PaymentsService {
     return paymentIntent.id ?? null;
   }
 
-  /** Relation graph of PaymentTransactionEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
-  get entityMetadata(): EntityMetadata {
-    return this.transactionsRepository.metadata;
-  }
-
   async myTransactions(user: AuthenticatedUser, relations: string[] = []): Promise<PaymentTransactionEntity[]> {
     return this.transactionsRepository.find({
       where: { userId: user.id },
@@ -232,30 +254,30 @@ export class PaymentsService {
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${transactionId} not found`);
     }
-    if (user.role !== UserRole.ADMIN && transaction.userId !== user.id) {
-      throw new ForbiddenException('You can only refund your own transactions');
-    }
+    assertOwnerOrAdmin(transaction.userId, user, 'You can only refund your own transactions');
     if (transaction.status !== PaymentTransactionStatus.SUCCEEDED) {
       throw new BadRequestException('Only successful payments can be refunded');
     }
-
-    // A SUCCEEDED transaction always has its PaymentIntent id resolved by `applyPaymentIntentStatus`.
-    const refund = await this.stripeService.createRefund(transaction.stripePaymentIntentId!);
-
-    transaction.status = PaymentTransactionStatus.REFUNDED;
-    transaction.stripeRefundId = refund.id;
-    transaction.refundedAt = new Date();
-    await this.transactionsRepository.save(transaction);
-
-    const post = await this.postsRepository.findOne({ where: { id: transaction.postId } });
-    if (post) {
-      post.status = PostStatus.DRAFT;
-      post.hasBeenPublished = false;
-      post.paymentStatus = PostPaymentStatus.REFUNDED;
-      await this.postsRepository.save(post);
-      await this.postIndexService.reindexOne(post.id);
+    if (!transaction.stripePaymentIntentId) {
+      throw new BadRequestException(`Transaction ${transactionId} has no PaymentIntent to refund`);
     }
 
-    return transaction;
+    const refund = await this.stripeService.createRefund(transaction.stripePaymentIntentId);
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        PaymentTransactionEntity,
+        { id: transaction.id },
+        { status: PaymentTransactionStatus.REFUNDED, stripeRefundId: refund.id, refundedAt: new Date() },
+      );
+      await manager.update(
+        PostEntity,
+        { id: transaction.postId },
+        { status: PostStatus.DRAFT, hasBeenPublished: false, paymentStatus: PostPaymentStatus.REFUNDED },
+      );
+    });
+    await this.postIndexService.reindexOne(transaction.postId);
+
+    return this.transactionsRepository.findOneOrFail({ where: { id: transaction.id } });
   }
 }

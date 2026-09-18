@@ -4,6 +4,7 @@ import type { PubSub } from 'graphql-subscriptions';
 import { randomUUID } from 'crypto';
 
 import { ChatService } from './chat.service';
+import { ChatBroadcastService } from './chat-broadcast.service';
 import { ChatPresenceTrackerService } from './chat-presence-tracker.service';
 import { CHAT_MESSAGE_ADDED_TOPIC, CHAT_PUB_SUB, CHAT_ROOM_PRESENCE_TOPIC } from './chat-pub-sub.provider';
 import { withAsyncIteratorCleanup } from './utils/async-iterator-cleanup.util';
@@ -28,14 +29,11 @@ interface ChatRoomPresencePayload {
   event: ChatPresenceEvent;
 }
 
-// Chat V2 (GraphQL subscriptions) - mirrors ChatGateway's sendMessage/adminBroadcast/joinRoom/leaveRoom
-// over GraphQL mutations + subscriptions instead of Socket.IO events. Reuses ChatService for all data
-// access, so the two transports never fall out of sync on room/message rules - they only differ in how
-// updates reach the client.
 @Resolver()
 export class ChatSubscriptionsResolver {
   constructor(
     private chatService: ChatService,
+    private chatBroadcastService: ChatBroadcastService,
     private presenceTracker: ChatPresenceTrackerService,
     @Inject(CHAT_PUB_SUB) private pubSub: PubSub,
   ) {}
@@ -48,7 +46,7 @@ export class ChatSubscriptionsResolver {
   ): Promise<ChatMessageEntity> {
     const savedMessage = await this.chatService.saveMessage(user.id, sendMessageInput);
 
-    await this.publishChatMessage(savedMessage);
+    await this.chatBroadcastService.broadcastNewMessage(savedMessage);
 
     return savedMessage;
   }
@@ -60,18 +58,7 @@ export class ChatSubscriptionsResolver {
     @Args('message') message: string,
     @CurrentUser() user: UserEntity,
   ): Promise<ChatMessageEntity[]> {
-    const roomIds = await this.chatService.getAllRoomIds();
-
-    const savedMessages: ChatMessageEntity[] = [];
-    for (const roomId of roomIds) {
-      const savedMessage = await this.chatService.saveMessage(user.id, { roomId, message });
-      savedMessage.isAdminBroadcast = true;
-      savedMessages.push(savedMessage);
-
-      await this.publishChatMessage(savedMessage);
-    }
-
-    return savedMessages;
+    return this.chatService.broadcastMessageToAllRooms(user.id, message);
   }
 
   @Subscription(() => ChatMessageEntity, {
@@ -119,13 +106,6 @@ export class ChatSubscriptionsResolver {
         await this.publishPresenceEvent(numericRoomId, ChatPresenceEventType.LEFT, user);
       }
     });
-  }
-
-  private async publishChatMessage(message: ChatMessageEntity): Promise<void> {
-    await this.pubSub.publish(CHAT_MESSAGE_ADDED_TOPIC, {
-      roomId: message.roomId,
-      message,
-    } satisfies ChatMessageAddedPayload);
   }
 
   private async publishPresenceEvent(roomId: number, type: ChatPresenceEventType, user: UserEntity): Promise<void> {

@@ -1,9 +1,10 @@
-import { Resolver, Query, Mutation, Args, ID, Info, registerEnumType } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Info, Int, registerEnumType } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import type { GraphQLResolveInfo } from 'graphql';
 
 import { getRequestedRelations } from '../utils/graphql-selection.util';
 import { CommentsService } from './comments.service';
+import { CommentsAnalyticsService } from './comments-analytics.service';
 import { CommentEntity } from './entities/comment.entity';
 import { CreateCommentInput } from './dto/create-comment.input';
 import { UpdateCommentInput } from './dto/update-comment.input';
@@ -28,15 +29,23 @@ registerEnumType(CommentPeriodGranularity, {
 
 @Resolver(() => CommentEntity)
 export class CommentsResolver {
-  constructor(private readonly commentsService: CommentsService) {}
+  constructor(
+    private readonly commentsService: CommentsService,
+    private readonly commentsAnalyticsService: CommentsAnalyticsService,
+  ) {}
 
   @UseGuards(GqlAuthGuard)
   @Mutation(() => CommentEntity)
   createComment(
     @Args('createCommentInput') createCommentInput: CreateCommentInput,
     @CurrentUser() user: AuthenticatedUser,
+    @Info() info: GraphQLResolveInfo,
   ): Promise<CommentEntity> {
-    return this.commentsService.create(createCommentInput, user);
+    return this.commentsService.create(
+      createCommentInput,
+      user,
+      getRequestedRelations(info, this.commentsService.entityMetadata),
+    );
   }
 
   @UseGuards(GqlAuthGuard)
@@ -44,8 +53,13 @@ export class CommentsResolver {
   updateComment(
     @Args('updateCommentInput') updateCommentInput: UpdateCommentInput,
     @CurrentUser() user: AuthenticatedUser,
+    @Info() info: GraphQLResolveInfo,
   ): Promise<CommentEntity> {
-    return this.commentsService.update(updateCommentInput, user);
+    return this.commentsService.update(
+      updateCommentInput,
+      user,
+      getRequestedRelations(info, this.commentsService.entityMetadata),
+    );
   }
 
   @UseGuards(GqlAuthGuard)
@@ -61,22 +75,29 @@ export class CommentsResolver {
   commentsByPost(
     @Args('postId', { type: () => ID }) postId: number,
     @Info() info: GraphQLResolveInfo,
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+    @Args('offset', { type: () => Int, nullable: true }) offset?: number,
   ): Promise<CommentEntity[]> {
-    return this.commentsService.findByPost(postId, getRequestedRelations(info, this.commentsService.entityMetadata));
+    return this.commentsService.findByPost(
+      postId,
+      getRequestedRelations(info, this.commentsService.entityMetadata),
+      limit,
+      offset,
+    );
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Query(() => [CommentsPerPostStat], { name: 'commentsPerPost' })
   commentsPerPost(): Promise<CommentsPerPostStat[]> {
-    return this.commentsService.commentsPerPost();
+    return this.commentsAnalyticsService.commentsPerPost();
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Query(() => [CommentsPerUserStat], { name: 'commentsPerUser' })
   commentsPerUser(): Promise<CommentsPerUserStat[]> {
-    return this.commentsService.commentsPerUser();
+    return this.commentsAnalyticsService.commentsPerUser();
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)
@@ -85,13 +106,13 @@ export class CommentsResolver {
   commentsPerPeriod(
     @Args('granularity', { type: () => CommentPeriodGranularity }) granularity: CommentPeriodGranularity,
   ): Promise<CommentsPerPeriodStat[]> {
-    return this.commentsService.commentsPerPeriod(granularity);
+    return this.commentsAnalyticsService.commentsPerPeriod(granularity);
   }
 
   @UseGuards(GqlAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Query(() => [RatingDistributionStat], { name: 'commentRatingDistribution' })
   commentRatingDistribution(): Promise<RatingDistributionStat[]> {
-    return this.commentsService.ratingDistribution();
+    return this.commentsAnalyticsService.ratingDistribution();
   }
 }

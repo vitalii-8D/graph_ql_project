@@ -33,11 +33,38 @@ const REQUIRED_ENV_VARS = [
   'STRIPE_PUBLISHABLE_KEY',
 ] as const;
 
+const ALLOWED_ENVIRONMENTS = ['development', 'test', 'production'] as const;
+const POSITIVE_INT_ENV_VARS = ['PORT', 'DATABASE_PORT', 'AWS_S3_UPLOAD_URL_EXPIRES_IN'] as const;
+const BOOLEAN_ENV_VARS = ['LOG_PRETTY_PRINT'] as const;
+
 export function validateEnv(): void {
   const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+
+  const errors: string[] = [];
+
+  if (!ALLOWED_ENVIRONMENTS.includes(process.env.ENVIRONMENT as (typeof ALLOWED_ENVIRONMENTS)[number])) {
+    errors.push(`ENVIRONMENT must be one of ${ALLOWED_ENVIRONMENTS.join(', ')}, got "${process.env.ENVIRONMENT}"`);
+  }
+
+  for (const key of POSITIVE_INT_ENV_VARS) {
+    const value = Number(process.env[key]);
+    if (!Number.isInteger(value) || value <= 0) {
+      errors.push(`${key} must be a positive integer, got "${process.env[key]}"`);
+    }
+  }
+
+  for (const key of BOOLEAN_ENV_VARS) {
+    if (process.env[key] !== 'true' && process.env[key] !== 'false') {
+      errors.push(`${key} must be "true" or "false", got "${process.env[key]}"`);
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid environment variables:\n${errors.join('\n')}`);
   }
 }
 

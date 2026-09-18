@@ -17,12 +17,19 @@ export interface CreateCheckoutSessionParams {
  * this service rather than importing `stripe` directly, so there is one place that knows how
  * to talk to the Stripe API.
  */
+const STRIPE_MAX_NETWORK_RETRIES = 2;
+const STRIPE_TIMEOUT_MS = 20_000;
+
 @Injectable()
 export class StripeService {
   private readonly client: Stripe;
 
   constructor() {
-    this.client = new Stripe(config.stripe.secretKey);
+    this.client = new Stripe(config.stripe.secretKey, {
+      apiVersion: Stripe.API_VERSION,
+      maxNetworkRetries: STRIPE_MAX_NETWORK_RETRIES,
+      timeout: STRIPE_TIMEOUT_MS,
+    });
   }
 
   createCheckoutSession(params: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session> {

@@ -1,12 +1,11 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CategoryEntity } from './entities/category.entity';
 import { CategoriesService } from './categories.service';
 import { CategoriesResolver } from './categories.resolver';
-import { PostsModule } from '../posts/posts.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CategoryEntity]), forwardRef(() => PostsModule)],
+  imports: [TypeOrmModule.forFeature([CategoryEntity])],
   providers: [CategoriesService, CategoriesResolver],
   exports: [CategoriesService],
 })

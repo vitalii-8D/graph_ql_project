@@ -126,11 +126,11 @@ export class SocialSharingService {
 
     if (metadata.post) {
       const url = `${baseUrl}/posts/${metadata.post.id}/${metadata.post.slug}`;
-      tags.push(`<meta property="og:url" content="${url}" />`);
+      tags.push(`<meta property="og:url" content="${this.escapeHtml(url)}" />`);
     }
 
     if (metadata.image) {
-      tags.push(`<meta property="og:image" content="${metadata.image}" />`);
+      tags.push(`<meta property="og:image" content="${this.escapeHtml(metadata.image)}" />`);
       if (metadata.imageAlt) {
         tags.push(`<meta property="og:image:alt" content="${this.escapeHtml(metadata.imageAlt)}" />`);
       }
@@ -147,7 +147,7 @@ export class SocialSharingService {
     }
 
     if (metadata.locale) {
-      tags.push(`<meta property="og:locale" content="${metadata.locale}" />`);
+      tags.push(`<meta property="og:locale" content="${this.escapeHtml(metadata.locale)}" />`);
     }
 
     // Article specific tags
@@ -173,7 +173,7 @@ export class SocialSharingService {
 
     // Video tags
     if (metadata.videoUrl) {
-      tags.push(`<meta property="og:video" content="${metadata.videoUrl}" />`);
+      tags.push(`<meta property="og:video" content="${this.escapeHtml(metadata.videoUrl)}" />`);
       if (metadata.videoDuration) {
         tags.push(`<meta property="og:video:duration" content="${metadata.videoDuration}" />`);
       }
@@ -187,7 +187,7 @@ export class SocialSharingService {
 
     // Audio tags
     if (metadata.audioUrl) {
-      tags.push(`<meta property="og:audio" content="${metadata.audioUrl}" />`);
+      tags.push(`<meta property="og:audio" content="${this.escapeHtml(metadata.audioUrl)}" />`);
     }
 
     // Product tags
@@ -196,10 +196,10 @@ export class SocialSharingService {
         tags.push(`<meta property="product:price:amount" content="${metadata.price}" />`);
       }
       if (metadata.currency) {
-        tags.push(`<meta property="product:price:currency" content="${metadata.currency}" />`);
+        tags.push(`<meta property="product:price:currency" content="${this.escapeHtml(metadata.currency)}" />`);
       }
       if (metadata.availability) {
-        tags.push(`<meta property="product:availability" content="${metadata.availability}" />`);
+        tags.push(`<meta property="product:availability" content="${this.escapeHtml(metadata.availability)}" />`);
       }
     }
 
@@ -225,23 +225,23 @@ export class SocialSharingService {
     }
 
     // Twitter Card tags
-    tags.push(`<meta name="twitter:card" content="${metadata.twitterCard ?? 'summary_large_image'}" />`);
+    tags.push(`<meta name="twitter:card" content="${this.escapeHtml(metadata.twitterCard ?? 'summary_large_image')}" />`);
     tags.push(`<meta name="twitter:title" content="${this.escapeHtml(metadata.title)}" />`);
     tags.push(`<meta name="twitter:description" content="${this.escapeHtml(metadata.description)}" />`);
 
     if (metadata.image) {
-      tags.push(`<meta name="twitter:image" content="${metadata.image}" />`);
+      tags.push(`<meta name="twitter:image" content="${this.escapeHtml(metadata.image)}" />`);
       if (metadata.imageAlt) {
         tags.push(`<meta name="twitter:image:alt" content="${this.escapeHtml(metadata.imageAlt)}" />`);
       }
     }
 
     if (metadata.twitterSite) {
-      tags.push(`<meta name="twitter:site" content="${metadata.twitterSite}" />`);
+      tags.push(`<meta name="twitter:site" content="${this.escapeHtml(metadata.twitterSite)}" />`);
     }
 
     if (metadata.twitterCreator) {
-      tags.push(`<meta name="twitter:creator" content="${metadata.twitterCreator}" />`);
+      tags.push(`<meta name="twitter:creator" content="${this.escapeHtml(metadata.twitterCreator)}" />`);
     }
 
     return tags.join('\n');

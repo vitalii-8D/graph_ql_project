@@ -308,5 +308,45 @@ describe('SocialSharingService', () => {
       expect(result).toContain('&gt;');
       expect(result).toContain('&#039;');
     });
+
+    // Regression coverage for every field the SEC-4 audit found interpolated without escaping:
+    // image/videoUrl/audioUrl, locale, product currency/availability, and the Twitter Card fields.
+    it('should escape HTML special characters in every interpolated field, not just title/description', () => {
+      const injected = '"><script>alert(1)</script>';
+      const metadata = {
+        title: 'Test',
+        description: 'Test',
+        type: OgType.PRODUCT,
+        image: `https://example.com/${injected}`,
+        videoUrl: `https://example.com/${injected}`,
+        audioUrl: `https://example.com/${injected}`,
+        locale: injected,
+        currency: injected,
+        availability: injected,
+        twitterCard: injected,
+        twitterSite: injected,
+        twitterCreator: injected,
+      } as OpenGraphMetadataEntity;
+
+      const result = service.generateOpenGraphTags(metadata, 'https://example.com');
+
+      expect(result).not.toContain(injected);
+      expect(result).not.toContain('<script>');
+    });
+
+    it('should escape a malicious baseUrl used to build og:url', () => {
+      const injected = '"><script>alert(1)</script>';
+      const metadata = {
+        title: 'Test',
+        description: 'Test',
+        type: OgType.ARTICLE,
+        post: { id: 1, slug: 'test-post' },
+      } as OpenGraphMetadataEntity;
+
+      const result = service.generateOpenGraphTags(metadata, `https://example.com/${injected}`);
+
+      expect(result).not.toContain(injected);
+      expect(result).not.toContain('<script>');
+    });
   });
 });

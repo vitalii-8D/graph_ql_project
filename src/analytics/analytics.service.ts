@@ -24,6 +24,19 @@ const NEGATIVE_RATING_THRESHOLD = 2;
 const POSITIVE_RATING_THRESHOLD = 4;
 const TOP_CITIES_SIZE = 20;
 
+interface DashboardAggregations {
+  userGrowth: DateCountPoint[];
+  roleBreakdown: RoleBreakdownPoint[];
+  topCities: TermCount[];
+  geoClusters: GeoCluster[];
+  topRatedPosts: Omit<TopRatedPost, 'postTitle'>[];
+  topRatedPostIds: number[];
+  commentVelocity: CommentVelocityPoint[];
+  commenterSentiment: Omit<CommenterSentiment, 'userName'>[];
+  sentimentUserIds: number[];
+  negativeCommentTerms: SignificantTerm[];
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -33,11 +46,18 @@ export class AnalyticsService {
   ) {}
 
   async getDashboard(input: AnalyticsDashboardInput): Promise<AnalyticsDashboard> {
+    const response = await this.elasticsearchService.msearch<unknown>(this.buildDashboardQueries(input));
+    const aggregated = this.extractAggregations(response);
+
+    return this.hydrateLabels(aggregated);
+  }
+
+  private buildDashboardQueries(input: AnalyticsDashboardInput): { index: string; body: estypes.SearchRequest }[] {
     const topN = input.topN ?? 10;
     const geohashPrecision = input.geohashPrecision ?? 4;
     const userGrowthInterval = input.userGrowthInterval ?? 'day';
 
-    const response = await this.elasticsearchService.msearch<unknown>([
+    return [
       {
         index: ES_INDICES.Users,
         body: {
@@ -110,8 +130,10 @@ export class AnalyticsService {
           },
         },
       },
-    ]);
+    ];
+  }
 
+  private extractAggregations(response: estypes.MsearchResponse<unknown>): DashboardAggregations {
     const [usersResult, commentsResult, negativeCommentsResult] = response.responses as [
       estypes.SearchResponse<unknown>,
       estypes.SearchResponse<unknown>,
@@ -122,47 +144,55 @@ export class AnalyticsService {
     const commentsAggs = commentsResult.aggregations as Record<string, unknown> | undefined;
     const negativeAggs = negativeCommentsResult.aggregations as Record<string, unknown> | undefined;
 
-    const userGrowth = this.mapDateHistogram(usersAggs?.userGrowth as estypes.AggregationsDateHistogramAggregate);
-    const roleBreakdown = this.mapRoleBreakdown(usersAggs?.roleBreakdown as estypes.AggregationsStringTermsAggregate);
-    const topCities = this.mapTermCounts(usersAggs?.topCities as estypes.AggregationsStringTermsAggregate);
-    const geoClusters = this.mapGeoClusters(usersAggs?.geoClusters as estypes.AggregationsGeoHashGridAggregate);
-
     const { topRatedPosts, topRatedPostIds } = this.mapTopRatedPostBuckets(
       commentsAggs?.topRatedPosts as estypes.AggregationsLongTermsAggregate,
-    );
-    const commentVelocity = this.mapCommentVelocity(
-      commentsAggs?.commentVelocity as estypes.AggregationsDateHistogramAggregate,
     );
     const { commenterSentiment, sentimentUserIds } = this.mapCommenterSentiment(
       commentsAggs?.sentiment as estypes.AggregationsFiltersAggregate,
     );
 
-    const negativeCommentTerms = this.mapSignificantTerms(
-      negativeAggs?.negativeTerms as estypes.AggregationsSignificantStringTermsAggregate,
-    );
+    return {
+      userGrowth: this.mapDateHistogram(usersAggs?.userGrowth as estypes.AggregationsDateHistogramAggregate),
+      roleBreakdown: this.mapRoleBreakdown(usersAggs?.roleBreakdown as estypes.AggregationsStringTermsAggregate),
+      topCities: this.mapTermCounts(usersAggs?.topCities as estypes.AggregationsStringTermsAggregate),
+      geoClusters: this.mapGeoClusters(usersAggs?.geoClusters as estypes.AggregationsGeoHashGridAggregate),
+      topRatedPosts,
+      topRatedPostIds,
+      commentVelocity: this.mapCommentVelocity(
+        commentsAggs?.commentVelocity as estypes.AggregationsDateHistogramAggregate,
+      ),
+      commenterSentiment,
+      sentimentUserIds,
+      negativeCommentTerms: this.mapSignificantTerms(
+        negativeAggs?.negativeTerms as estypes.AggregationsSignificantStringTermsAggregate,
+      ),
+    };
+  }
 
+  /** Resolves the Postgres-only labels (post titles, user names) ES doesn't have, and assembles the final shape. */
+  private async hydrateLabels(aggregated: DashboardAggregations): Promise<AnalyticsDashboard> {
     const [postLabels, userLabels] = await Promise.all([
-      this.postsService.findByIds(topRatedPostIds),
-      this.usersService.findByIds(sentimentUserIds),
+      this.postsService.findByIds(aggregated.topRatedPostIds),
+      this.usersService.findByIds(aggregated.sentimentUserIds),
     ]);
     const postTitleById = new Map(postLabels.map((post) => [post.id, post.title]));
     const userNameById = new Map(userLabels.map((user) => [user.id, user.name]));
 
     return {
-      userGrowth,
-      roleBreakdown,
-      topCities,
-      geoClusters,
-      topRatedPosts: topRatedPosts.map((post) => ({
+      userGrowth: aggregated.userGrowth,
+      roleBreakdown: aggregated.roleBreakdown,
+      topCities: aggregated.topCities,
+      geoClusters: aggregated.geoClusters,
+      topRatedPosts: aggregated.topRatedPosts.map((post) => ({
         ...post,
         postTitle: postTitleById.get(post.postId) ?? `Post #${post.postId}`,
       })),
-      commentVelocity,
-      commenterSentiment: commenterSentiment.map((entry) => ({
+      commentVelocity: aggregated.commentVelocity,
+      commenterSentiment: aggregated.commenterSentiment.map((entry) => ({
         ...entry,
         userName: userNameById.get(entry.userId) ?? `User #${entry.userId}`,
       })),
-      negativeCommentTerms,
+      negativeCommentTerms: aggregated.negativeCommentTerms,
     };
   }
 

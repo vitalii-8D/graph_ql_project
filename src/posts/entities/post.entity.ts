@@ -46,7 +46,7 @@ export class PostEntity {
   content: string;
 
   @Field()
-  @Column()
+  @Column({ unique: true })
   slug: string;
 
   @Field(() => PostStatus)

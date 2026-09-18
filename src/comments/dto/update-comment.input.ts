@@ -1,5 +1,5 @@
 import { InputType, Field, ID, Int } from '@nestjs/graphql';
-import { IsNotEmpty, IsInt, IsOptional, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsInt, IsOptional, Min, Max, MaxLength } from 'class-validator';
 
 @InputType()
 export class UpdateCommentInput {
@@ -10,6 +10,7 @@ export class UpdateCommentInput {
   @Field({ nullable: true })
   @IsOptional()
   @IsNotEmpty()
+  @MaxLength(1000)
   content?: string;
 
   @Field(() => Int, { nullable: true })

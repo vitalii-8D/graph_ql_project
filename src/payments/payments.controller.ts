@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Headers, Post, Req } from '@nestjs/common';
+import { BadRequestException, Controller, Headers, Logger, NotFoundException, Post, Req } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import type Stripe from 'stripe';
@@ -8,6 +8,8 @@ import { StripeService } from './services/stripe.service';
 
 @Controller()
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly stripeService: StripeService,
@@ -32,7 +34,19 @@ export class PaymentsController {
       throw new BadRequestException(`Webhook signature verification failed: ${(error as Error).message}`);
     }
 
-    await this.paymentsService.handleWebhookEvent(event);
+    try {
+      await this.paymentsService.handleWebhookEvent(event);
+    } catch (error) {
+      // A transaction row that will never exist (deleted, stray test event, ...) is terminal —
+      // returning a non-2xx here would just make Stripe retry the same unresolvable event for
+      // days. Log it for manual review and acknowledge receipt; any other error still propagates
+      // so Stripe retries genuinely transient failures.
+      if (error instanceof NotFoundException) {
+        this.logger.error(`Unrecoverable webhook event ${event.id} (${event.type}): ${error.message}`);
+      } else {
+        throw error;
+      }
+    }
 
     return { received: true };
   }

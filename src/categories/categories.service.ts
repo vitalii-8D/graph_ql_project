@@ -1,40 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, type EntityMetadata } from 'typeorm';
+import { Repository } from 'typeorm';
 
+import { RelationAwareService } from '../utils/relation-aware.service';
 import { CategoryEntity } from './entities/category.entity';
-import { PostEntity } from '../posts/entities/post.entity';
+
+const MAX_CATEGORIES_PER_PAGE = 200;
+const DEFAULT_CATEGORIES_PER_PAGE = 50;
 
 @Injectable()
-export class CategoriesService {
+export class CategoriesService extends RelationAwareService<CategoryEntity> {
   constructor(
     @InjectRepository(CategoryEntity)
     private categoriesRepository: Repository<CategoryEntity>,
-  ) {}
-
-  /** Relation graph of CategoryEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
-  get entityMetadata(): EntityMetadata {
-    return this.categoriesRepository.metadata;
+  ) {
+    super();
   }
 
-  async findAll(relations: string[] = []): Promise<CategoryEntity[]> {
-    return await this.categoriesRepository.find({ relations });
+  protected get repository(): Repository<CategoryEntity> {
+    return this.categoriesRepository;
   }
 
-  async findByPostId(postId: number): Promise<CategoryEntity[]> {
-    return await this.categoriesRepository.find({
-      where: {
-        posts: { id: postId },
-      },
-    });
-  }
-
-  async getCategoryPosts(categoryId: number): Promise<PostEntity[]> {
-    const category = await this.categoriesRepository.findOne({
-      where: { id: categoryId },
-      relations: ['posts'],
-    });
-
-    return category?.posts ?? [];
+  async findAll(
+    relations: string[] = [],
+    limit = DEFAULT_CATEGORIES_PER_PAGE,
+    offset = 0,
+  ): Promise<CategoryEntity[]> {
+    return await this.categoriesRepository.find({ relations, take: Math.min(limit, MAX_CATEGORIES_PER_PAGE), skip: offset });
   }
 }

@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, type EntityMetadata } from 'typeorm';
-import type { estypes } from '@elastic/elasticsearch';
+import { DataSource, In, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../../auth/types/common';
 import { CategoryEntity } from '../../categories/entities/category.entity';
 import { SITE_NAME } from '../../constants/common';
@@ -10,25 +15,26 @@ import { CreateOpenGraphInput } from '../../open-graph/dto/create-open-graph.inp
 import { OgType } from '../../open-graph/entities/open-graph-metadata.entity';
 import { OpenGraphService } from '../../open-graph/services/open-graph.service';
 import { PostImagesService } from '../../post-images/post-images.service';
-import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
-import { ES_INDICES } from '../../elasticsearch/enums/indices';
-import { PostSearchDocument } from '../../elasticsearch/mappings/posts.mapping';
-import { encodeCursor, decodeCursor } from '../../elasticsearch/utils/cursor.util';
+import { RelationAwareService } from '../../utils/relation-aware.service';
 import { UserEntity } from '../../users/entities/user.entity';
 import { UserRole } from '../../users/enums';
-import { sortByIds } from '../../utils/sort-by-ids';
 import { CreatePostInput } from '../dto/create-post.input';
 import { UpdatePostInput } from '../dto/update-post.input';
-import { SearchPostsInput, SearchPostsAdvancedInput } from '../dto/search-posts.input';
-import { PostSearchResult } from '../dto/post-search-result.type';
 import { PostEntity } from '../entities/post.entity';
 import { PostIndexService } from './post-index.service';
 import { PostStatus, PostPaymentStatus } from '../enums';
 
 const AVERAGE_READING_SPEED_WPM = 200;
+const MAX_POSTS_PER_PAGE = 100;
+const DEFAULT_POSTS_PER_PAGE = 20;
+const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: string }).code === POSTGRES_UNIQUE_VIOLATION;
+}
 
 @Injectable()
-export class PostsService {
+export class PostsService extends RelationAwareService<PostEntity> {
   constructor(
     @InjectRepository(PostEntity)
     private postsRepository: Repository<PostEntity>,
@@ -39,75 +45,74 @@ export class PostsService {
     private openGraphService: OpenGraphService,
     private postImagesService: PostImagesService,
     private postIndexService: PostIndexService,
-    private elasticsearchService: ElasticsearchService,
-  ) {}
+    private dataSource: DataSource,
+  ) {
+    super();
+  }
 
-  async create(createPostInput: CreatePostInput, user: AuthenticatedUser): Promise<PostEntity> {
+  protected get repository(): Repository<PostEntity> {
+    return this.postsRepository;
+  }
+
+  async create(createPostInput: CreatePostInput, user: AuthenticatedUser, relations: string[] = []): Promise<PostEntity> {
     const { categoryIds, metadata, image, ...postData } = createPostInput;
 
-    const author = await this.usersRepository.findOne({
-      where: { id: user.id },
-    });
+    const author = await this.usersRepository.findOne({ where: { id: user.id } });
     if (!author) {
       throw new NotFoundException(`User with ID ${user.id} not found`);
     }
 
-    const existingBySlug = await this.postsRepository.existsBy({ slug: postData.slug });
-    if (existingBySlug) {
-      throw new BadRequestException('Post with this slug already exists');
-    }
-
     let categories: CategoryEntity[] = [];
     if (categoryIds && categoryIds.length > 0) {
-      categories = await this.categoriesRepository.findBy({
-        id: In(categoryIds),
+      categories = await this.categoriesRepository.findBy({ id: In(categoryIds) });
+    }
+
+    let savedPost: PostEntity;
+    try {
+      savedPost = await this.dataSource.transaction(async (manager) => {
+        const post = manager.create(PostEntity, {
+          ...postData,
+          readingTimeMinutes: this.computeReadingTime(postData.content),
+          author,
+          categories,
+        });
+        const saved = await manager.save(post);
+
+        let postMetadata: CreateOpenGraphInput = {
+          title: postData.title,
+          description: postData.title.split('.')[0],
+          type: OgType.ARTICLE,
+          locale: 'en_US',
+          siteName: SITE_NAME,
+        };
+        if (metadata) {
+          postMetadata = { ...postMetadata, tags: metadata.tags, image: metadata.image, imageAlt: metadata.imageAlt };
+        }
+        if (image) {
+          const postImage = await this.postImagesService.upsertForPost(saved.id, image, manager);
+          postMetadata = {
+            ...postMetadata,
+            image: postImage.url,
+            ...(postImage.altText ? { imageAlt: postImage.altText } : {}),
+          };
+        }
+        await this.openGraphService.createForPost(saved.id, postMetadata, undefined, manager);
+
+        return saved;
       });
-    }
-
-    const post = this.postsRepository.create({
-      ...postData,
-      readingTimeMinutes: this.computeReadingTime(postData.content),
-      author,
-      categories,
-    });
-
-    const savedPost = await this.postsRepository.save(post);
-
-    let postMetadata: CreateOpenGraphInput = {
-      title: postData.title,
-      description: postData.title.split('.')[0],
-      type: OgType.ARTICLE,
-      locale: 'en_US',
-      siteName: SITE_NAME,
-    };
-    if (metadata) {
-      postMetadata.tags = metadata.tags;
-      postMetadata.image = metadata.image;
-      postMetadata.imageAlt = metadata.imageAlt;
-    }
-    if (image) {
-      const postImage = await this.postImagesService.upsertForPost(savedPost.id, image);
-      postMetadata = {
-        ...postMetadata,
-        image: postImage.url,
-      };
-
-      if (postImage.altText) {
-        postMetadata.imageAlt = postImage.altText;
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(`Post with slug "${postData.slug}" already exists`);
       }
+      throw error;
     }
-    await this.openGraphService.createForPost(savedPost.id, postMetadata);
+
     await this.postIndexService.reindexOne(savedPost.id);
 
-    return savedPost;
+    return this.findOne(savedPost.id, relations);
   }
 
-  /** Relation graph of PostEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
-  get entityMetadata(): EntityMetadata {
-    return this.postsRepository.metadata;
-  }
-
-  async findAll(relations: string[] = []): Promise<PostEntity[]> {
+  async findAll(relations: string[] = [], limit = DEFAULT_POSTS_PER_PAGE, offset = 0): Promise<PostEntity[]> {
     return await this.postsRepository.find({
       where: [
         { status: PostStatus.PUBLISHED, paymentStatus: PostPaymentStatus.SUCCEEDED },
@@ -115,21 +120,13 @@ export class PostsService {
       ],
       order: { createdAt: OrderDirection.DESC },
       relations,
-    });
-  }
-
-  async findByAuthorId(authorId: number): Promise<PostEntity[]> {
-    return await this.postsRepository.find({
-      where: { authorId },
-      order: { createdAt: OrderDirection.DESC },
+      take: Math.min(limit, MAX_POSTS_PER_PAGE),
+      skip: offset,
     });
   }
 
   async findOne(id: number, relations: string[] = []): Promise<PostEntity> {
-    const post = await this.postsRepository.findOne({
-      where: { id },
-      relations,
-    });
+    const post = await this.postsRepository.findOne({ where: { id }, relations });
 
     if (!post) {
       throw new NotFoundException(`Post with ID ${id} not found`);
@@ -138,7 +135,7 @@ export class PostsService {
     return post;
   }
 
-  async update(updatePostInput: UpdatePostInput, user: AuthenticatedUser): Promise<PostEntity> {
+  async update(updatePostInput: UpdatePostInput, user: AuthenticatedUser, relations: string[] = []): Promise<PostEntity> {
     const { id, categoryIds, metadata, image, ...updateData } = updatePostInput;
     const post = await this.findOne(id);
 
@@ -159,34 +156,43 @@ export class PostsService {
     }
 
     if (categoryIds) {
-      post.categories = await this.categoriesRepository.findBy({
-        id: In(categoryIds),
+      post.categories = await this.categoriesRepository.findBy({ id: In(categoryIds) });
+    }
+
+    let savedPost: PostEntity;
+    try {
+      savedPost = await this.dataSource.transaction(async (manager) => {
+        const saved = await manager.save(PostEntity, { ...post, id: post.id });
+
+        let postMetadata: Partial<CreateOpenGraphInput> = {
+          title: updateData?.title,
+          description: updateData?.title?.split('.')[0],
+        };
+        if (metadata) {
+          postMetadata = { ...postMetadata, tags: metadata.tags, image: metadata.image, imageAlt: metadata.imageAlt };
+        }
+        if (image) {
+          const postImage = await this.postImagesService.upsertForPost(saved.id, image, manager);
+          postMetadata = {
+            ...postMetadata,
+            image: postImage.url,
+            ...(postImage.altText ? { imageAlt: postImage.altText } : {}),
+          };
+        }
+        await this.openGraphService.upsertForPost(saved.id, postMetadata, manager);
+
+        return saved;
       });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException(`Post with slug "${updateData.slug}" already exists`);
+      }
+      throw error;
     }
 
-    const savedPost = await this.postsRepository.save({ ...post, id: post.id });
-
-    let postMetadata: Partial<CreateOpenGraphInput> = {
-      title: updateData?.title,
-      description: updateData?.title?.split('.')[0],
-    };
-    if (metadata) {
-      postMetadata.tags = metadata.tags;
-      postMetadata.image = metadata.image;
-      postMetadata.imageAlt = metadata.imageAlt;
-    }
-    if (image) {
-      const postImage = await this.postImagesService.upsertForPost(savedPost.id, image);
-      postMetadata = {
-        ...postMetadata,
-        image: postImage.url,
-        ...(postImage.altText ? { imageAlt: postImage.altText } : {}),
-      };
-    }
-    await this.openGraphService.upsertForPost(savedPost.id, postMetadata);
     await this.postIndexService.reindexOne(savedPost.id);
 
-    return savedPost;
+    return this.findOne(savedPost.id, relations);
   }
 
   async remove(id: number, user: AuthenticatedUser): Promise<PostEntity> {
@@ -208,117 +214,9 @@ export class PostsService {
     return await this.postsRepository.findBy({ id: In(ids) });
   }
 
-  async incrementViewCount(id: number): Promise<PostEntity> {
+  async incrementViewCount(id: number, relations: string[] = []): Promise<PostEntity> {
     await this.postsRepository.increment({ id }, 'viewCount', 1);
-    return this.findOne(id);
-  }
-
-  async updateCommentAggregates(postId: number, commentCount: number, averageRating: number | null): Promise<void> {
-    await this.postsRepository.update({ id: postId }, { commentCount, averageRating });
-    await this.postIndexService.reindexOne(postId);
-  }
-
-  async search(input: SearchPostsInput, relations: string[] = []): Promise<PostSearchResult> {
-    const limit = input.limit ?? 10;
-    const hasQuery = Boolean(input.query);
-
-    const must: estypes.QueryDslQueryContainer[] = [
-      hasQuery
-        ? {
-            multi_match: {
-              query: input.query!,
-              fields: ['title^3', 'content^2', 'author.name^1'],
-              type: 'best_fields',
-              fuzziness: 'AUTO',
-              tie_breaker: 0.3,
-            },
-          }
-        : { match_all: {} },
-    ];
-
-    const query: estypes.QueryDslQueryContainer = { bool: { must, filter: this.buildVisibilityFilters(input) } };
-
-    const sort: estypes.SortCombinations[] = hasQuery
-      ? [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }]
-      : [{ createdAt: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
-
-    return this.executeSearch(query, sort, limit, input.cursor, relations);
-  }
-
-  /**
-   * Lucene-syntax search for power users/admin tooling: `query_string` supports field-scoped
-   * terms, boolean operators, wildcards, and phrases in one string, unlike the fuzzy
-   * `multi_match` used by `search`. `content` is analyzed with `post_content_analyzer`
-   * (stemming + English stop-words, see posts.mapping.ts) so terms like "running" still
-   * match "run".
-   */
-  async searchAdvanced(input: SearchPostsAdvancedInput): Promise<PostSearchResult> {
-    const limit = input.limit ?? 10;
-
-    const must: estypes.QueryDslQueryContainer[] = [
-      {
-        query_string: {
-          query: input.queryString,
-          fields: ['title^3', 'content^2', 'author.name'],
-          default_operator: 'AND',
-          fuzziness: 'AUTO',
-          lenient: true,
-        },
-      },
-    ];
-
-    const query: estypes.QueryDslQueryContainer = { bool: { must, filter: this.buildVisibilityFilters(input) } };
-    const sort: estypes.SortCombinations[] = [{ _score: { order: OrderDirection.DESC } }, { id: OrderDirection.ASC }];
-
-    return this.executeSearch(query, sort, limit, input.cursor);
-  }
-
-  private buildVisibilityFilters(input: {
-    categories?: string[];
-    createdAt?: { from?: string; to?: string };
-    readingTime?: { min?: number; max?: number };
-  }): estypes.QueryDslQueryContainer[] {
-    const filter: estypes.QueryDslQueryContainer[] = [
-      { term: { status: PostStatus.PUBLISHED } },
-      { terms: { paymentStatus: [PostPaymentStatus.SUCCEEDED, PostPaymentStatus.NOT_REQUIRED] } },
-    ];
-    if (input.categories && input.categories.length > 0) {
-      filter.push(...input.categories.map((category) => ({ term: { 'categories.name': category } })));
-    }
-    if (input.createdAt?.from || input.createdAt?.to) {
-      filter.push({ range: { createdAt: { gte: input.createdAt.from, lte: input.createdAt.to } } });
-    }
-    if (input.readingTime?.min || input.readingTime?.max) {
-      filter.push({ range: { readingTimeMinutes: { gte: input.readingTime.min, lte: input.readingTime.max } } });
-    }
-    return filter;
-  }
-
-  private async executeSearch(
-    query: estypes.QueryDslQueryContainer,
-    sort: estypes.SortCombinations[],
-    limit: number,
-    cursor?: string,
-    relations: string[] = [],
-  ): Promise<PostSearchResult> {
-    const response = await this.elasticsearchService.search<PostSearchDocument>(ES_INDICES.Posts, {
-      query,
-      sort,
-      size: limit,
-      search_after: decodeCursor(cursor),
-    });
-
-    const hits = response.hits.hits;
-    const ids = hits.map((hit) => Number(hit._id));
-    const rows = ids.length > 0 ? await this.postsRepository.find({ where: { id: In(ids) }, relations }) : [];
-
-    const items = sortByIds(ids, rows);
-
-    const lastHit = hits[hits.length - 1];
-    const nextCursor =
-      hits.length === limit ? encodeCursor(lastHit?.sort as (string | number)[] | undefined) : undefined;
-
-    return { items, nextCursor };
+    return this.findOne(id, relations);
   }
 
   private computeReadingTime(content: string): number {

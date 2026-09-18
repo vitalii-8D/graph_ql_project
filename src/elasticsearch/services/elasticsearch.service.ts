@@ -3,11 +3,13 @@ import { Client, estypes } from '@elastic/elasticsearch';
 
 import { config } from '../../constants/config';
 
+const ES_REQUEST_TIMEOUT_MS = 10_000;
+
 @Injectable()
 export class ElasticsearchService implements OnModuleInit {
   private readonly logger = new Logger(ElasticsearchService.name);
 
-  readonly client = new Client({ node: config.elasticsearch.node });
+  readonly client = new Client({ node: config.elasticsearch.node, requestTimeout: ES_REQUEST_TIMEOUT_MS });
 
   async onModuleInit(): Promise<void> {
     try {

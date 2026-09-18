@@ -1,7 +1,8 @@
 import { Kind, parse, type FieldNode, type FragmentDefinitionNode, type GraphQLResolveInfo } from 'graphql';
 import type { EntityMetadata } from 'typeorm';
 
-import { MAX_RELATION_DEPTH, getRequestedRelations } from './graphql-selection.util';
+import { getRequestedRelations } from './graphql-selection.util';
+import { MAX_RELATION_DEPTH } from '../constants/common';
 
 /** Minimal stand-in for the slice of EntityMetadata the helper walks, wired into the same cycles as the real entities. */
 type FakeMetadata = { relations: { propertyName: string; inverseEntityMetadata: FakeMetadata }[] };

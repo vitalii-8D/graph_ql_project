@@ -1,62 +1,73 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, type EntityMetadata } from 'typeorm';
+import { DataSource, Repository, type EntityManager } from 'typeorm';
 
 import type { AuthenticatedUser } from '../auth/types/common';
 import { PostEntity } from '../posts/entities/post.entity';
-import { PostsService } from '../posts/services/posts.service';
+import { PostIndexService } from '../posts/services/post-index.service';
+import { RelationAwareService } from '../utils/relation-aware.service';
 import { UserRole } from '../users/enums';
 import { CreateCommentInput } from './dto/create-comment.input';
 import { UpdateCommentInput } from './dto/update-comment.input';
-import {
-  CommentsPerPostStat,
-  CommentsPerUserStat,
-  CommentsPerPeriodStat,
-  RatingDistributionStat,
-} from './dto/comment-analytics.types';
-import { CommentPeriodGranularity } from './enums';
 import { CommentEntity } from './entities/comment.entity';
 import { CommentIndexService } from './comment-index.service';
 
+const MAX_COMMENTS_PER_PAGE = 100;
+const DEFAULT_COMMENTS_PER_PAGE = 20;
+
 @Injectable()
-export class CommentsService {
+export class CommentsService extends RelationAwareService<CommentEntity> {
   constructor(
     @InjectRepository(CommentEntity)
     private commentsRepository: Repository<CommentEntity>,
     @InjectRepository(PostEntity)
     private postsRepository: Repository<PostEntity>,
-    private postsService: PostsService,
+    private postIndexService: PostIndexService,
     private commentIndexService: CommentIndexService,
-  ) {}
+    private dataSource: DataSource,
+  ) {
+    super();
+  }
 
-  async create(createCommentInput: CreateCommentInput, user: AuthenticatedUser): Promise<CommentEntity> {
+  protected get repository(): Repository<CommentEntity> {
+    return this.commentsRepository;
+  }
+
+  async create(
+    createCommentInput: CreateCommentInput,
+    user: AuthenticatedUser,
+    relations: string[] = [],
+  ): Promise<CommentEntity> {
     const postExists = await this.postsRepository.existsBy({ id: createCommentInput.postId });
     if (!postExists) {
       throw new NotFoundException(`Post with ID ${createCommentInput.postId} not found`);
     }
 
-    const comment = this.commentsRepository.create({
-      ...createCommentInput,
-      authorId: user.id,
+    const savedComment = await this.dataSource.transaction(async (manager) => {
+      const comment = manager.create(CommentEntity, { ...createCommentInput, authorId: user.id });
+      const saved = await manager.save(comment);
+      await this.recomputePostAggregates(saved.postId, manager);
+      return saved;
     });
-    const savedComment = await this.commentsRepository.save(comment);
 
-    await this.recomputePostAggregates(savedComment.postId);
+    await this.postIndexService.reindexOne(savedComment.postId);
     await this.commentIndexService.indexComment(savedComment);
 
-    return savedComment;
+    return this.findOne(savedComment.id, relations);
   }
 
-  /** Relation graph of CommentEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
-  get entityMetadata(): EntityMetadata {
-    return this.commentsRepository.metadata;
-  }
-
-  async findByPost(postId: number, relations: string[] = []): Promise<CommentEntity[]> {
+  async findByPost(
+    postId: number,
+    relations: string[] = [],
+    limit = DEFAULT_COMMENTS_PER_PAGE,
+    offset = 0,
+  ): Promise<CommentEntity[]> {
     return await this.commentsRepository.find({
       where: { postId },
       order: { createdAt: 'DESC' },
       relations,
+      take: Math.min(limit, MAX_COMMENTS_PER_PAGE),
+      skip: offset,
     });
   }
 
@@ -67,15 +78,19 @@ export class CommentsService {
     });
   }
 
-  async findOne(id: number): Promise<CommentEntity> {
-    const comment = await this.commentsRepository.findOne({ where: { id } });
+  async findOne(id: number, relations: string[] = []): Promise<CommentEntity> {
+    const comment = await this.commentsRepository.findOne({ where: { id }, relations });
     if (!comment) {
       throw new NotFoundException(`Comment with ID ${id} not found`);
     }
     return comment;
   }
 
-  async update(updateCommentInput: UpdateCommentInput, user: AuthenticatedUser): Promise<CommentEntity> {
+  async update(
+    updateCommentInput: UpdateCommentInput,
+    user: AuthenticatedUser,
+    relations: string[] = [],
+  ): Promise<CommentEntity> {
     const { id, ...updateData } = updateCommentInput;
     const comment = await this.findOne(id);
 
@@ -84,34 +99,45 @@ export class CommentsService {
     }
 
     Object.assign(comment, updateData);
-    const savedComment = await this.commentsRepository.save(comment);
+
+    const savedComment = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.save(comment);
+      if (updateData.rating !== undefined) {
+        await this.recomputePostAggregates(saved.postId, manager);
+      }
+      return saved;
+    });
 
     if (updateData.rating !== undefined) {
-      await this.recomputePostAggregates(savedComment.postId);
+      await this.postIndexService.reindexOne(savedComment.postId);
     }
     await this.commentIndexService.indexComment(savedComment);
 
-    return savedComment;
+    return this.findOne(savedComment.id, relations);
   }
 
   async remove(id: number, user: AuthenticatedUser): Promise<CommentEntity> {
-    const comment = await this.findOne(id);
+    const comment = await this.findOne(id, ['post', 'author']);
 
     if (user.role !== UserRole.ADMIN && comment.authorId !== user.id) {
       throw new ForbiddenException('You can only delete your own comments');
     }
 
-    // repository.remove() nulls the entity's primary key on success — capture it first.
-    await this.commentsRepository.remove(comment);
-    await this.recomputePostAggregates(comment.postId);
+    await this.dataSource.transaction(async (manager) => {
+      // repository.remove() nulls the entity's primary key on success — capture it first.
+      await manager.remove(CommentEntity, comment);
+      await this.recomputePostAggregates(comment.postId, manager);
+    });
+
+    await this.postIndexService.reindexOne(comment.postId);
     await this.commentIndexService.deleteComment(id);
 
     return { ...comment, id };
   }
 
-  private async recomputePostAggregates(postId: number): Promise<void> {
-    const result = await this.commentsRepository
-      .createQueryBuilder('comment')
+  private async recomputePostAggregates(postId: number, manager: EntityManager): Promise<void> {
+    const result = await manager
+      .createQueryBuilder(CommentEntity, 'comment')
       .select('COUNT(comment.id)', 'count')
       .addSelect('AVG(comment.rating)', 'average')
       .where('comment.postId = :postId', { postId })
@@ -120,60 +146,6 @@ export class CommentsService {
     const commentCount = Number(result?.count ?? 0);
     const averageRating = result?.average != null ? Number(result.average) : null;
 
-    await this.postsService.updateCommentAggregates(postId, commentCount, averageRating);
-  }
-
-  async commentsPerPost(): Promise<CommentsPerPostStat[]> {
-    const rows = await this.commentsRepository
-      .createQueryBuilder('comment')
-      .leftJoin('comment.post', 'post')
-      .select('comment.postId', 'postId')
-      .addSelect('post.title', 'postTitle')
-      .addSelect('COUNT(comment.id)', 'count')
-      .groupBy('comment.postId')
-      .addGroupBy('post.title')
-      .orderBy('count', 'DESC')
-      .getRawMany<{ postId: number; postTitle: string; count: string }>();
-
-    return rows.map((row) => ({ postId: row.postId, postTitle: row.postTitle, count: Number(row.count) }));
-  }
-
-  async commentsPerUser(): Promise<CommentsPerUserStat[]> {
-    const rows = await this.commentsRepository
-      .createQueryBuilder('comment')
-      .leftJoin('comment.author', 'author')
-      .select('comment.authorId', 'userId')
-      .addSelect('author.name', 'userName')
-      .addSelect('COUNT(comment.id)', 'count')
-      .groupBy('comment.authorId')
-      .addGroupBy('author.name')
-      .orderBy('count', 'DESC')
-      .getRawMany<{ userId: number; userName: string; count: string }>();
-
-    return rows.map((row) => ({ userId: row.userId, userName: row.userName, count: Number(row.count) }));
-  }
-
-  async commentsPerPeriod(granularity: CommentPeriodGranularity): Promise<CommentsPerPeriodStat[]> {
-    const rows = await this.commentsRepository
-      .createQueryBuilder('comment')
-      .select(`DATE_TRUNC('${granularity}', comment.createdAt)`, 'period')
-      .addSelect('COUNT(comment.id)', 'count')
-      .groupBy('period')
-      .orderBy('period', 'DESC')
-      .getRawMany<{ period: Date; count: string }>();
-
-    return rows.map((row) => ({ period: row.period.toISOString(), count: Number(row.count) }));
-  }
-
-  async ratingDistribution(): Promise<RatingDistributionStat[]> {
-    const rows = await this.commentsRepository
-      .createQueryBuilder('comment')
-      .select('comment.rating', 'rating')
-      .addSelect('COUNT(comment.id)', 'count')
-      .groupBy('comment.rating')
-      .orderBy('comment.rating', 'ASC')
-      .getRawMany<{ rating: number; count: string }>();
-
-    return rows.map((row) => ({ rating: row.rating, count: Number(row.count) }));
+    await manager.update(PostEntity, { id: postId }, { commentCount, averageRating });
   }
 }

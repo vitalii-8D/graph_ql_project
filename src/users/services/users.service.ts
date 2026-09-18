@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, type EntityMetadata } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import type { estypes } from '@elastic/elasticsearch';
 
 import { ElasticsearchService } from '../../elasticsearch/services/elasticsearch.service';
@@ -10,6 +10,7 @@ import { encodeCursor, decodeCursor } from '../../elasticsearch/utils/cursor.uti
 import type { AuthenticatedUser } from '../../auth/types/common';
 import { OrderDirection } from '../../enums/order-direction.enum';
 import { PasswordUtil } from '../../utils/password.util';
+import { RelationAwareService } from '../../utils/relation-aware.service';
 import { sortByIds } from '../../utils/sort-by-ids';
 import { CreateUserInput } from '../dto/create-user.input';
 import { UpdateUserInput } from '../dto/update-user.input';
@@ -18,15 +19,24 @@ import { UserSearchResult } from '../dto/user-search-result.type';
 import { UserEntity } from '../entities/user.entity';
 import { UserIndexService } from './user-index.service';
 
+const MAX_USERS_PER_PAGE = 100;
+const DEFAULT_USERS_PER_PAGE = 20;
+
 @Injectable()
-export class UsersService {
+export class UsersService extends RelationAwareService<UserEntity> {
   constructor(
     @InjectRepository(UserEntity)
     private usersRepository: Repository<UserEntity>,
     private readonly passwordUtil: PasswordUtil,
     private readonly userIndexService: UserIndexService,
     private readonly elasticsearchService: ElasticsearchService,
-  ) {}
+  ) {
+    super();
+  }
+
+  protected get repository(): Repository<UserEntity> {
+    return this.usersRepository;
+  }
 
   async create(createUserInput: CreateUserInput): Promise<UserEntity> {
     const hashedPassword = await this.passwordUtil.hash(createUserInput.password);
@@ -39,13 +49,8 @@ export class UsersService {
     return savedUser;
   }
 
-  /** Relation graph of UserEntity, used by resolvers to turn a GraphQL selection set into eager-loadable relations. */
-  get entityMetadata(): EntityMetadata {
-    return this.usersRepository.metadata;
-  }
-
-  async findAll(relations: string[] = []): Promise<UserEntity[]> {
-    return await this.usersRepository.find({ relations });
+  async findAll(relations: string[] = [], limit = DEFAULT_USERS_PER_PAGE, offset = 0): Promise<UserEntity[]> {
+    return await this.usersRepository.find({ relations, take: Math.min(limit, MAX_USERS_PER_PAGE), skip: offset });
   }
 
   async findByIdPlain(id: number): Promise<UserEntity | null> {
@@ -149,8 +154,12 @@ export class UsersService {
 
   async update(updateUserInput: UpdateUserInput): Promise<UserEntity> {
     const user = await this.findOne(updateUserInput.id);
+    const { password, ...rest } = updateUserInput;
 
-    Object.assign(user, updateUserInput);
+    Object.assign(user, rest);
+    if (password) {
+      user.password = await this.passwordUtil.hash(password);
+    }
 
     const savedUser = await this.usersRepository.save({ ...user, id: +user.id });
     await this.userIndexService.indexUser(savedUser);

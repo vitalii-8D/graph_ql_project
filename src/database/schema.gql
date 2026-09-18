@@ -371,7 +371,6 @@ input PostImageInput {
   mimeType: String!
   originalFileName: String!
   sizeBytes: Int!
-  url: String!
 }
 
 input PostMetadataInput {
@@ -415,31 +414,31 @@ type PublishPostResult {
 
 type Query {
   analyticsDashboard(input: AnalyticsDashboardInput): AnalyticsDashboard!
-  categories: [CategoryEntity!]!
+  categories(limit: Int, offset: Int): [CategoryEntity!]!
   chatRoom(id: ID!): ChatRoomEntity!
   chatRoomMessages(roomId: ID!): [ChatMessageEntity!]!
   chatRooms: [ChatRoomEntity!]!
   commentRatingDistribution: [RatingDistributionStat!]!
-  commentsByPost(postId: ID!): [CommentEntity!]!
+  commentsByPost(limit: Int, offset: Int, postId: ID!): [CommentEntity!]!
   commentsPerPeriod(granularity: CommentPeriodGranularity!): [CommentsPerPeriodStat!]!
   commentsPerPost: [CommentsPerPostStat!]!
   commentsPerUser: [CommentsPerUserStat!]!
-  generateOpenGraphTags(baseUrl: String!, id: ID!): String!
+  generateOpenGraphTags(id: ID!): String!
   generateShareLinks(postId: ID, url: String!): ShareLinks!
   me: UserEntity!
   myDirectMessageRooms: [ChatRoomEntity!]!
   myTransactions: [PaymentTransactionEntity!]!
   openGraphMetadata(id: ID!): OpenGraphMetadataEntity!
   openGraphMetadataByPost(postId: ID!): OpenGraphMetadataEntity
-  openGraphMetadataList: [OpenGraphMetadataEntity!]!
+  openGraphMetadataList(limit: Int, offset: Int): [OpenGraphMetadataEntity!]!
   post(id: ID!): PostEntity!
-  posts: [PostEntity!]!
+  posts(limit: Int, offset: Int): [PostEntity!]!
   searchPosts(input: SearchPostsInput!): PostSearchResult!
   searchPostsAdvanced(input: SearchPostsAdvancedInput!): PostSearchResult!
   searchUsers(input: SearchUsersInput!): UserSearchResult!
   transactionsForPost(postId: ID!): [PaymentTransactionEntity!]!
   user(id: ID!): UserEntity!
-  users: [UserEntity!]!
+  users(limit: Int, offset: Int): [UserEntity!]!
 }
 
 type RatingDistributionStat {
@@ -610,7 +609,6 @@ input UserAvatarInput {
   mimeType: String!
   originalFileName: String!
   sizeBytes: Int!
-  url: String!
 }
 
 type UserEntity {

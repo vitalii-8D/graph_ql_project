@@ -1,4 +1,4 @@
-import { Resolver, Query, Info } from '@nestjs/graphql';
+import { Resolver, Query, Info, Int, Args } from '@nestjs/graphql';
 import type { GraphQLResolveInfo } from 'graphql';
 
 import { getRequestedRelations } from '../utils/graphql-selection.util';
@@ -10,7 +10,15 @@ export class CategoriesResolver {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Query(() => [CategoryEntity], { name: 'categories' })
-  findAll(@Info() info: GraphQLResolveInfo): Promise<CategoryEntity[]> {
-    return this.categoriesService.findAll(getRequestedRelations(info, this.categoriesService.entityMetadata));
+  findAll(
+    @Info() info: GraphQLResolveInfo,
+    @Args('limit', { type: () => Int, nullable: true }) limit?: number,
+    @Args('offset', { type: () => Int, nullable: true }) offset?: number,
+  ): Promise<CategoryEntity[]> {
+    return this.categoriesService.findAll(
+      getRequestedRelations(info, this.categoriesService.entityMetadata),
+      limit,
+      offset,
+    );
   }
 }
