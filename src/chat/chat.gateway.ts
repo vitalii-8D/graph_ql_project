@@ -14,6 +14,7 @@ import { createLogger } from '../utils/logger';
 import { ChatService } from './chat.service';
 import { ChatBroadcastService } from './chat-broadcast.service';
 import { ChatPresenceTrackerService } from './chat-presence-tracker.service';
+import { ROOM_PREFIX } from './constants/common';
 import { SendMessageInput } from './dto/send-message.input';
 import { RoomIdInput } from './dto/room-id.input';
 import { AdminBroadcastInput } from './dto/admin-broadcast.input';
@@ -136,11 +137,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     for (const roomName of client.rooms) {
-      if (!roomName.startsWith('room-')) {
+      if (!roomName.startsWith(ROOM_PREFIX)) {
         continue;
       }
 
-      const roomId = Number(roomName.slice('room-'.length));
+      const roomId = Number(roomName.slice(ROOM_PREFIX.length));
       const userFullyLeft = this.presenceTracker.trackLeave(roomId, user.id, client.id);
       if (userFullyLeft) {
         client.to(roomName).emit(ChatSocketEvent.UserLeft, {
@@ -170,7 +171,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     try {
       const room = await this.chatService.getRoomForUser(data.roomId, client.data.user.id);
-      const roomName = `room-${data.roomId}`;
+      const roomName = `${ROOM_PREFIX}${data.roomId}`;
 
       await client.join(roomName);
 
@@ -206,7 +207,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     this.logger.debug({ msg: 'leaveRoom received', roomId: data.roomId, userId: client.data.user.id });
 
     try {
-      const roomName = `room-${data.roomId}`;
+      const roomName = `${ROOM_PREFIX}${data.roomId}`;
       await client.leave(roomName);
 
       // Only notify others once this was the user's last open socket in the room -

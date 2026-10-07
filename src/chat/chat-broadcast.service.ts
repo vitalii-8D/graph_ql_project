@@ -3,6 +3,7 @@ import type { Server } from 'socket.io';
 import type { PubSub } from 'graphql-subscriptions';
 
 import { CHAT_MESSAGE_ADDED_TOPIC, CHAT_PUB_SUB } from './chat-pub-sub.provider';
+import { ROOM_PREFIX } from './constants/common';
 import { ChatMessageEntity } from './entities/chat-message.entity';
 import { ChatSocketEvent } from './enums/chat-socket-event.enum';
 
@@ -28,7 +29,9 @@ export class ChatBroadcastService {
   }
 
   async broadcastNewMessage(message: ChatMessageEntity): Promise<void> {
-    this.socketServer?.to(`room-${message.roomId}`).emit(ChatSocketEvent.NewMessage, this.serializeMessage(message));
+    this.socketServer
+      ?.to(`${ROOM_PREFIX}${message.roomId}`)
+      .emit(ChatSocketEvent.NewMessage, this.serializeMessage(message));
 
     await this.pubSub.publish(CHAT_MESSAGE_ADDED_TOPIC, {
       roomId: message.roomId,
