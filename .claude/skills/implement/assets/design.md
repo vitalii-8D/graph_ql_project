@@ -24,11 +24,11 @@ inputs:
 
 | Module | File | Layer | Change | AC |
 |---|---|---|---|---|
-| payments (new) | src/payments/payments.service.ts | service | create | AC1, AC2 |
+| <module> (new) | <path/to/file> | <service / component / route / …> | create | AC1, AC2 |
 
 ## 4. Data model
 
-**Entities / columns / relations / indexes / enums**
+**Entities / models / columns / relations / indexes / enums** (n/a for tasks with no persistence)
 
 | Entity (table) | Change | Detail |
 |---|---|---|
@@ -67,8 +67,8 @@ inputs:
 
 - [ ] <search index / cache / event consumers>
 - [ ] <seeder>
-- [ ] <entity registration list / module wiring>
-- [ ] <generated schema regenerated>
+- [ ] <registration list / wiring (entities, routes, providers)>
+- [ ] <generated schema / client regenerated>
 - [ ] <CLAUDE.md / README section>
 - [ ] <.env.example>
 
@@ -76,7 +76,7 @@ inputs:
 
 | Rule | How it shapes this design |
 |---|---|
-| arch-feature-modules | |
+| <rule name from the loaded best-practices skill / CLAUDE.md> | |
 
 **House-rule overrides:** <generic rule → repo convention that wins, and why>
 
