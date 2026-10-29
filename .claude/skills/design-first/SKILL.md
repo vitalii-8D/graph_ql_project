@@ -48,6 +48,8 @@ Rules:
    - You propose; the user decides. No significant design decision is finalized silently. Keep a running **decision log** (decision, options considered, who decided); it feeds the final review and the closing summary.
    - If the user cannot be reached interactively, stop at the first open decision and return the questions rather than assuming.
 
+   - **List open questions as a numbered list** (`1.`, `2.`, …), one question per item, so the user can answer by number (e.g. "1: yes, 2: B"). Number continuously within a single message and restart at 1 in the next round. When a question has options, label them with letters (`a`, `b`, `c`) and mark the recommended one. This applies to the interview (Step 3), to decisions raised while drafting, and to the `Open` line of the closing report.
+
 2. **Consistency with existing documentation and code.** The DFA must agree with what already exists: schema definitions, naming conventions, architectural decisions in `docs/`, the README, and the code itself. Where the new requirements conflict with them, raise it with the user and agree a resolution — possibly updating earlier docs — **before** proceeding.
 
 3. **Respect project conventions.** Before drafting, read the project's instruction files if they exist (`CLAUDE.md`, `AGENTS.md`, `README`, `CONTRIBUTING`, rule files, `docs/`) and the manifest (`package.json`, `tsconfig.json`) to learn the stack, framework, ORM, test runner, and naming style. Use that stack's vocabulary in the DFA; do not impose a different one.
@@ -104,7 +106,7 @@ Close the run by reporting what landed and what was decided:
 DFA ........ docs/tasks/orders-discount/001_dfa_orders_discount.md   (task name confirmed: orders-discount)
 Source ..... <path | url | issue ref | "prompt">
 Decisions .. <N> logged — <one-line list of the key ones>
-Open ....... <unresolved questions, or "none">
+Open ....... <unresolved questions as a numbered list, or "none">
 ```
 
 Start by reading the template so you have the latest structure: `Read .claude/skills/design-first/assets/dfa_template.md`.
